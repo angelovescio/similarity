@@ -13,7 +13,7 @@
 #include <stdio.h>
 
 using namespace std;
-void AttemptInsert(string filetype);
+int AttemptInsert(string filetype);
 void PrintMappings();
 string DetectFileType(const char* filename);
 struct comparer
@@ -25,7 +25,7 @@ struct comparer
     }
 };
 
-typedef struct HashList{
+struct HashList{
 	ulong64 hash1;
 	int chunk1;
 	ulong64 hash2;

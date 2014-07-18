@@ -64,6 +64,7 @@
       <PrecompiledHeader />
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <DisableSpecificWarnings>4005;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <AdditionalDependencies>magic.lib;zlib.lib;libjpeg-static-mt.lib;libpng.lib;%(AdditionalDependencies)</AdditionalDependencies>

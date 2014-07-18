@@ -3,15 +3,15 @@
 using namespace std; 
 int map_count = 0;
 map<string,int,comparer> file_type_mapping;
+FILE* outfile = NULL;
 
-
-int genbmp(uint8_t* &mainvector,const char* fname, int chunk_size=256)
+int genbmp(uint8_t* &mainvector,int* filetype, const char* fname, int chunk_size=256)
 {
 	HANDLE file;
 	int size = 0;
 	int arrsize = 0;
 	string ftype = DetectFileType(fname);
-	AttemptInsert(ftype);
+	*filetype = AttemptInsert(ftype);
 	file = CreateFile(fname,GENERIC_READ,0,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);  //Sets up the new bmp to be written to
 	DWORD lphigh;
 	size = GetFileSize(file,&lphigh);
@@ -34,7 +34,8 @@ int examine_proc(const char* fullpath,const char* filename)
 	int examine_length = 0;
 	//vec of ulong64 hashes and the chunk they appear in
 	std::vector<std::pair<ulong64,int>> *v = new vector<std::pair<ulong64,int>>();
-	int arr_size1 = genbmp(mainvector,fullpath);
+	int ftype = 0;
+	int arr_size1 = genbmp(mainvector,&ftype,fullpath);
 	int x = 32;//s/0x64;
 	int y = 32;//s/0x64;
 	int mover = 0;//arr_size1/chunk_size;
@@ -59,38 +60,20 @@ int examine_proc(const char* fullpath,const char* filename)
 		uint8_t* p_main = (mainvector)+i;
 		if(NULL != p_main)
 		{
-			uint8_t* temp;
-			size_t outsize;
 			ulong64 hash1 =0;
-			ulong64 hash2 =0;
 
 			//char* fname = new char[260];
 			cimg_library::CImg<uint8_t> img2(p_main,x,y,1,3,1);
-			//cimg_library::CImgList<uint8_t> llimg2 =  img2.get_FFT(false);
 			int err1 = ph_dct_imagehash_from_buffer(img2,hash1);
-			//cimg_library::CImgList<uint8_t>::iterator it;
-			//int fft_counter=0;
-			//for(it=llimg2.begin();it!=llimg2.end();++it)
-			//{
-			//	cimg_library::CImg<uint8_t> im = *it;
-			//	err1 = ph_dct_imagehash_from_buffer(im,hash2);
-			//	/*sprintf(fname,"images\\%s_%x_%llx_%d.%s",
-			//		str.c_str(),i,hash2,fft_counter,"bmp");*/
-			//	//im.save(fname);
-			//	fft_counter++;
-			//}
-			//if(hash1 !=0)
-			//{
-			//	//Save the image here when you are done for the x-compares
-			//	//sprintf(fname,"images\\%s_%x_%llx.%s",
-			//	//	str.c_str(),i,hash1,"bmp");
-			//	//img2.save(fname);
-			//	//remove(tempname);
-			//	std::pair<ulong64,int> tempp(hash1,i);
-			//	v->push_back(tempp);
-
-			//}
-			//free(temp);
+			if(outfile != NULL)
+			{
+				fprintf(outfile,"%I64u\n",hash1);
+				fprintf(outfile,"%d\n",ftype);
+				char filename[260]="";
+				sprintf(filename,"C:\\Users\\vesh\\Documents\\Visual Studio 2012\\\
+					Projects\\similarity\\images\\%I64u__%d.bmp",hash1,ftype);
+				img2.save(filename);
+			}
 		}
 
 	}
@@ -98,47 +81,6 @@ int examine_proc(const char* fullpath,const char* filename)
 	{
 		free(mainvector);
 	}
-	//std::sort(v->begin(),v->end(),sort_by_hash);
-	//ulong64 last_val =0;
-	//int last_chunk = 0;
-	//FILE* fi;
-	//fi = fopen("C:\\Users\\vesh\\Documents\\Visual Studio 2012\\Projects\\pHash-0.9.4\\images\\mapping.txt","w");
-	//vector<HashList> *v_hash = new vector<HashList>();
-	//if(fi)
-	//{
-	//	for (std::vector<pair<ulong64,int>>::iterator it=(*v).begin(); it!=(*v).end(); ++it)
-	//	{
-	//		int hm = ph_hamming_distance(last_val,it->first);
-	//		HashList* h = (HashList*)malloc(sizeof(HashList));
-	//		h->hamming_distance=hm;
-	//		h->hash1=last_val;
-	//		h->hash2 = it->first;
-	//		h->chunk1 = last_chunk;
-	//		h->chunk2 = it->second;
-	//		v_hash->push_back(*h);
-
-	//		fprintf(fi,"Hamming between %llx and %llx was %d %s",last_val,it->first,hm,"\n");
-
-	//		last_val = (*it).first;
-	//		last_chunk = (*it).second;
-	//	}
-	//	for (std::vector<HashList>::iterator it=(*v_hash).begin(); it!=(*v_hash).end(); ++it){
-	//		char* fname_last = new char[260];
-	//		char* fname_last_copy = new char[260];
-	//		char* fname_it = new char[260];
-	//		char* fname_it_copy = new char[260];
-	//		HashList h = *it;
-
-	//		sprintf(fname_last,"images\\%llx_%x_resave.%s",h.hash1,h.chunk1,"bmp");
-	//		sprintf(fname_last_copy,"images\\%d\\%llx_%x_resave.%s",h.hamming_distance,h.hash1,h.chunk1,"bmp");
-	//		sprintf(fname_it,"images\\%llx_%x_resave.%s",h.hash2,h.chunk2,"bmp");
-	//		sprintf(fname_it_copy,"images\\%d\\%llx_%x_resave.%s",h.hamming_distance,h.hash2,h.chunk2,"bmp");
-	//		/*CopyFile(fname_it,fname_it_copy,false);
-	//		CopyFile(fname_last,fname_last_copy,false);*/
-	//	}
-	//	fclose(fi);
-	//}
-	//free(slavevector);
 	return 0;
 }
 string SearchDrive( const string& strFile, const string& strFilePath, const bool& bRecursive, const bool& bStopWhenFound )
@@ -192,10 +134,21 @@ string SearchDrive( const string& strFile, const string& strFilePath, const bool
 	}
 	return strFoundFilePath;
 }
-void AttemptInsert(string filetype)
+int AttemptInsert(string filetype)
 {
+	int retval = 0;
 	map_count = file_type_mapping.size();
 	file_type_mapping.insert(pair<string,int>(filetype,map_count));
+	if(map_count < file_type_mapping.size())
+	{
+		retval = file_type_mapping.size();
+	}
+	else
+	{
+		map<string,int>::iterator it = file_type_mapping.find(filetype);
+		retval = it->second;
+	}
+	return retval;
 }
 void PrintMappings()
 {
@@ -237,7 +190,16 @@ string DetectFileType(const char* filename)
 	return retval;
 }
 int main(int argc, char* argv[]) { 
+	outfile = fopen(".\\outfile.txt","w+");
+	if(outfile != NULL)
+	{
+		fprintf(outfile,"4 1 4\n");
+	}
 	SearchDrive("","C:\\Users\\",true,false);
+	if(outfile != NULL)
+	{
+		fclose(outfile);
+	}
 	PrintMappings();
 	return 0; 
 }
