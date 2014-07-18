@@ -14,6 +14,7 @@
     <ProjectGuid>{1A4E5682-AA5E-41E6-9C0D-CC85D3A3D547}</ProjectGuid>
     <RootNamespace>pHash</RootNamespace>
     <Keyword>Win32Proj</Keyword>
+    <ProjectName>similarity</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -65,7 +66,7 @@
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>zlib.lib;libjpeg-static-mt.lib;libpng.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>magic.lib;zlib.lib;libjpeg-static-mt.lib;libpng.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <StackCommitSize>0</StackCommitSize>

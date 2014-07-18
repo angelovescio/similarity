@@ -9,6 +9,21 @@
 #include <algorithm>
 #include <map>
 #include <windows.h>
+#include <magic.h>
+#include <stdio.h>
+
+using namespace std;
+void AttemptInsert(string filetype);
+void PrintMappings();
+string DetectFileType(const char* filename);
+struct comparer
+{
+    public:
+    bool operator()(const string x, const string y)
+    {
+         return x.compare(y)<0;
+    }
+};
 
 typedef struct HashList{
 	ulong64 hash1;
