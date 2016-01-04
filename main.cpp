@@ -2,78 +2,107 @@
 
 using namespace std; 
 int map_count = 0;
+CRITICAL_SECTION critical;
 map<string,int,comparer> file_type_mapping;
+vector<pair<ulong64,int>> hash_map;
+vector<pair<ulong64,string>> file_map;
 FILE* outfile = NULL;
-
-int genbmp(uint8_t* &mainvector,int* filetype, const char* fname, int chunk_size=256)
+FILE* outfile_translation = NULL;
+uint8_t numThreads = 8;
+int genbmp(uint8_t* &mainvector,int* filesize, const char* fname, int chunk_size=256)
 {
 	HANDLE file;
-	int size = 0;
+	//int size = 0;
 	int arrsize = 0;
-	string ftype = DetectFileType(fname);
-	*filetype = AttemptInsert(ftype);
+	//string ftype = "";// DetectFileType(fname);
+	//*filetype = AttemptInsert(ftype);
+	//strcpy(*fsType,ftype.c_str());
 	file = CreateFile(fname,GENERIC_READ,0,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);  //Sets up the new bmp to be written to
 	DWORD lphigh;
-	size = GetFileSize(file,&lphigh);
-	if(size < chunk_size)
+	*filesize = GetFileSize(file,&lphigh);
+
+	if(*filesize < chunk_size)
 	{
 		goto err_exit;
 	}
-	mainvector = (uint8_t*)calloc(chunk_size,sizeof(char));
-	ReadFile(file,mainvector,chunk_size,&lphigh,NULL);
-	arrsize = chunk_size/sizeof(uint8_t);
+	mainvector = (uint8_t*)calloc(*filesize, sizeof(uint8_t));
+	if (mainvector == NULL)
+	{
+		arrsize = 0;
+		goto err_exit;
+	}
+	//mainvector = (uint8_t*)calloc(chunk_size, sizeof(uint8_t));
+	ReadFile(file,mainvector,*filesize,&lphigh,NULL);
+	//arrsize = chunk_size / sizeof(uint8_t);
+	arrsize = (*filesize) /chunk_size;
+	//if (mainvector[0] != 0x42 && mainvector[1] != 0x4d)
+	if (mainvector[0] != 0x4d && mainvector[1] != 0x5a)
+	{
+		arrsize = 0;
+	}
 	CloseHandle(file);
 err_exit:
 	return arrsize;
 }
 bool sort_by_hash(const pair<ulong64,int> &lhs, const pair<ulong64,int> &rhs) { return lhs.first < rhs.first; }
-int examine_proc(const char* fullpath,const char* filename)
+bool sort_by_hash_file(const pair<ulong64,string> &lhs, const pair<ulong64,string> &rhs) { return lhs.first < rhs.first; }
+bool sort_by_file_type(const pair<string,int> &lhs, const pair<string,int> &rhs) { return lhs.second < rhs.second; }
+/*
+params:
+	fullpath - path to file
+	x - width
+	y - height
+	z - depth
+Increase the aperture by fiddlign with x,y
+*/
+//int examine_proc(const char* fullpath,int x=32, int y=32, int z=3)
+unsigned int __stdcall examine_proc(void * args)
 {
+	ProcArgs* pArgs = (ProcArgs*)(args);
 	uint8_t* mainvector = NULL;
-	//float* slavevector;
 	int examine_length = 0;
-	//vec of ulong64 hashes and the chunk they appear in
-	std::vector<std::pair<ulong64,int>> *v = new vector<std::pair<ulong64,int>>();
+	int filesize = 0;
 	int ftype = 0;
-	int arr_size1 = genbmp(mainvector,&ftype,fullpath);
-	int x = 32;//s/0x64;
-	int y = 32;//s/0x64;
-	int mover = 0;//arr_size1/chunk_size;
-	if(arr_size1 <= x*y*3)
+	//may need to be 0xc00 since x*y*z*alpha == that
+	int arr_size1 = genbmp(mainvector,&filesize,pArgs->fullpath,0xc00);
+	if (arr_size1 == 0)
 	{
-		mover = arr_size1;
+		return 0;
 	}
-	else
-	{
-		mover = x*y*3;
-	}
-	char chars[] = ".";
-	string str(filename);
-	for (unsigned int i = 0; i < strlen(chars); ++i)
-	{
-		// you need include <algorithm> to use general algorithms like std::remove()
-		str.erase (std::remove(str.begin(), str.end(), chars[i]), str.end());
-	}
+	int mover = pArgs->x*pArgs->y*pArgs->z;
+	
 	//BMP data length calc is width*height*3 where three is the number of of color vals in a pixel
-	for(int i=0,j=0;i<arr_size1;i=i+mover,j++)
+	for(int i=0,j=0;j<arr_size1;i=i+mover,j++)
 	{
-		uint8_t* p_main = (mainvector)+i;
-		if(NULL != p_main)
+		if(NULL != mainvector)
 		{
+			uint8_t* p_main = (mainvector)+i;
+			int bufferLeft = filesize - i;
 			ulong64 hash1 =0;
-
-			//char* fname = new char[260];
-			cimg_library::CImg<uint8_t> img2(p_main,x,y,1,3,1);
-			int err1 = ph_dct_imagehash_from_buffer(img2,hash1);
-			if(outfile != NULL)
-			{
-				fprintf(outfile,"%I64u\n",hash1);
-				fprintf(outfile,"%d\n",ftype);
-				char filename[260]="";
-				sprintf(filename,"C:\\Users\\vesh\\Documents\\Visual Studio 2012\\\
-					Projects\\similarity\\images\\%I64u__%d.bmp",hash1,ftype);
-				img2.save(filename);
+			uint8_t* buffer = (uint8_t*)malloc(mover);
+			memset(buffer, 0, mover);
+			if (bufferLeft < mover) {
+				memcpy_s(buffer, bufferLeft, p_main, bufferLeft);
 			}
+			else {
+				memcpy_s(buffer, mover, p_main, mover);
+			}
+			
+			cimg_library::CImg<uint8_t> img2(buffer, pArgs->x, pArgs->y,1, pArgs->z,1);
+			int err1 = ph_dct_imagehash_from_buffer(img2, hash1);
+			//null hash == 54086765383280
+			if (hash1 == 54086765383280)
+			{
+				free(buffer);
+				continue;
+			}
+			string spath(pArgs->fullpath);
+			string ext = spath.substr(spath.find_last_of(".") + 1);
+			std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+			printf("%s,%s,%I64u\n", pArgs->fullpath, ext.c_str(),hash1);
+			int err2 = fprintf(outfile, "%s,%s,%I64u\n", pArgs->fullpath, ext.c_str(), hash1);
+			fflush(outfile);
+			free(buffer);
 		}
 
 	}
@@ -106,7 +135,7 @@ string SearchDrive( const string& strFile, const string& strFilePath, const bool
 				{
 					if(strcmp(file.cFileName,".") !=0 && strcmp(file.cFileName,"..") !=0)
 					{
-						strFoundFilePath = SearchDrive( strFile, strPathToAppend.append(strTheNameOfTheFile), bRecursive, bStopWhenFound );
+						strFoundFilePath = SearchDrive( strFile, strPathToAppend.append("\\"+strTheNameOfTheFile), bRecursive, bStopWhenFound );
 					}
 					if ( !strFoundFilePath.empty() && bStopWhenFound )
 					{
@@ -117,20 +146,32 @@ string SearchDrive( const string& strFile, const string& strFilePath, const bool
 			else
 			{
 				strPathToAppend.append("\\");
-				examine_proc(strPathToAppend.append(file.cFileName).c_str(),file.cFileName);
+				ProcArgs* p = (ProcArgs*)malloc(sizeof(ProcArgs));
+				memset(p, 0, sizeof(ProcArgs));
+				const char* fullPath = strPathToAppend.append(file.cFileName).c_str();
+				memcpy_s(p, sizeof(p->fullpath), fullPath, strlen(fullPath));
+				p->x = 32;
+				p->y = 32;
+				p->z = 3;
+				HANDLE eHandle;
+				eHandle = (HANDLE)_beginthreadex(0, 0, &examine_proc, (void*)p, 0, 0);
+				WaitForSingleObject(eHandle, INFINITE);
+				CloseHandle(eHandle);
+				free(p);
 				if ( strTheNameOfTheFile.compare(strFile) )
 				{
 					strFoundFilePath = strPathToAppend.append(strFile);
-
-					/// TODO
-					// ADD TO COLLECTION TYPE
-
 					if ( bStopWhenFound )
 						break;
 				}
 			}
 		}
 		while ( FindNextFile(hFile, &file) );
+		FindClose(hFile);
+	}
+	else
+	{
+		printf("Nothing for %s!\n", strFilePath.c_str());
 	}
 	return strFoundFilePath;
 }
@@ -153,15 +194,24 @@ int AttemptInsert(string filetype)
 void PrintMappings()
 {
 	FILE* mapping_file =NULL;
-	mapping_file = fopen("C:\\mappings.txt","w+");
+	mapping_file = fopen(".\\mappings.txt","w+");
 	if(mapping_file !=NULL)
 	{
+		vector<pair<string,int>> temp_map;
 		map<string,int>::iterator it = file_type_mapping.begin();
 		for(;it!=file_type_mapping.end();it++)
 		{
 			string s = it->first;
 			int t = it->second;
-			fprintf(mapping_file,"##%s##\t##%d##\n",s.c_str(),it->second);
+			temp_map.push_back(pair<string,int>(s,t));
+		}
+		sort(temp_map.begin(),temp_map.end(),sort_by_file_type);
+		vector<pair<string,int>>::iterator it2 = temp_map.begin();
+		for(;it2!=temp_map.end();it2++)
+		{
+			string s = it2->first;
+			int t = it2->second;
+			//fprintf(mapping_file,"##%s##\t##%d##\n",s.c_str(),t);
 		}
 		if(mapping_file != NULL)
 		{
@@ -169,37 +219,70 @@ void PrintMappings()
 		}
 	}
 }
-string DetectFileType(const char* filename)
+//string DetectFileType(const char* filename)
+//{
+//	const char *magic_full;
+//	magic_t magic_cookie;
+//	/*MAGIC_MIME tells magic to return a mime of the file, but you can specify different things*/
+//	magic_cookie = magic_open(MAGIC_CONTINUE);
+//	if (magic_cookie == NULL) {
+//		printf("unable to initialize magic library\n");
+//		return "";
+//	}
+//	if (magic_load(magic_cookie, "magic.def") != 0) {
+//		printf("cannot load magic database - %s\n", magic_error(magic_cookie));
+//		magic_close(magic_cookie);
+//		return "";
+//	}
+//	magic_full = magic_file(magic_cookie, filename);
+//	string retval(magic_full);
+//	magic_close(magic_cookie);
+//	return retval;
+//}
+void OutputSearch()
 {
-	const char *magic_full;
-	magic_t magic_cookie;
-	/*MAGIC_MIME tells magic to return a mime of the file, but you can specify different things*/
-	magic_cookie = magic_open(MAGIC_MIME);
-	if (magic_cookie == NULL) {
-		printf("unable to initialize magic library\n");
-		return "";
+	sort(hash_map.begin(),hash_map.end(),sort_by_hash);
+	for(vector<pair<ulong64,int>>::iterator it = hash_map.begin();
+		it != hash_map.end();it++)
+	{
+		if(outfile != NULL)
+		{
+			ulong64 u = it->first;
+			int t = it->second;
+			fprintf(outfile,"%I64u\n",u);
+			fprintf(outfile,"%d\n",t);
+		}
 	}
-	if (magic_load(magic_cookie, "magic.def") != 0) {
-		printf("cannot load magic database - %s\n", magic_error(magic_cookie));
-		magic_close(magic_cookie);
-		return "";
+	sort(file_map.begin(),file_map.end(),sort_by_hash_file);
+	for(vector<pair<ulong64,string>>::iterator it = file_map.begin();
+		it != file_map.end();it++)
+	{
+		if(outfile_translation != NULL)
+		{
+			ulong64 u = it->first;
+			string t = it->second;
+			fprintf(outfile_translation,"%I64u\n",u);
+			fprintf(outfile_translation,"%s\n",t.c_str());
+		}
 	}
-	magic_full = magic_file(magic_cookie, filename);
-	string retval(magic_full);
-	magic_close(magic_cookie);
-	return retval;
 }
 int main(int argc, char* argv[]) { 
 	outfile = fopen(".\\outfile.txt","w+");
+	outfile_translation = fopen(".\\outfile_translation.txt","w+");
 	if(outfile != NULL)
 	{
 		fprintf(outfile,"4 1 4\n");
 	}
-	SearchDrive("","C:\\Users\\",true,false);
+	SearchDrive("","C:",true,false);
+	//OutputSearch();
+	PrintMappings();
 	if(outfile != NULL)
 	{
 		fclose(outfile);
 	}
-	PrintMappings();
+	if(outfile_translation != NULL)
+	{
+		fclose(outfile_translation);
+	}
 	return 0; 
 }

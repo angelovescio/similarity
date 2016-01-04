@@ -1,3 +1,4 @@
+#pragma omp
 #ifndef NODE_H
 #define NODE_H
 #include <iostream> 
@@ -8,14 +9,16 @@
 #include <vector>
 #include <algorithm>
 #include <map>
+#include <process.h>
 #include <windows.h>
-#include <magic.h>
+//#include <magic.h>
 #include <stdio.h>
 
 using namespace std;
 int AttemptInsert(string filetype);
 void PrintMappings();
-string DetectFileType(const char* filename);
+unsigned int __stdcall examine_proc(void * args);
+//string DetectFileType(const char* filename);
 struct comparer
 {
     public:
@@ -24,7 +27,13 @@ struct comparer
          return x.compare(y)<0;
     }
 };
-
+struct ProcArgs
+{
+	char fullpath[3200];
+	int x;
+	int y;
+	int z;
+};
 struct HashList{
 	ulong64 hash1;
 	int chunk1;

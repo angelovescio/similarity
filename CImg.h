@@ -8568,7 +8568,8 @@ namespace cimg_library {
 
     //! Pointer to the first pixel of the pixel buffer.
     T *_data;
-
+	//! size of data from assign()
+	unsigned int _cbdata = 0;
     //! Iterator type for CImg<T>.
     /**
        \remark
@@ -8696,7 +8697,10 @@ namespace cimg_library {
       const unsigned int siz = dx*dy*dz*dc;
       if (siz) {
         _width = dx; _height = dy; _depth = dz; _spectrum = dc;
-        try { _data = new T[siz]; } catch (...) {
+        try { 
+			_data = new T[siz]; 
+			_cbdata = siz*sizeof(T);
+		} catch (...) {
           _width = _height = _depth = _spectrum = 0; _data = 0;
           throw CImgInstanceException(_cimg_instance
                                       "CImg() : Failed to allocate memory (%s) for image (%u,%u,%u,%u).",
@@ -8723,7 +8727,10 @@ namespace cimg_library {
       const unsigned int siz = dx*dy*dz*dc;
       if (siz) {
         _width = dx; _height = dy; _depth = dz; _spectrum = dc;
-        try { _data = new T[siz]; } catch (...) {
+        try { 
+			_data = new T[siz]; 
+			_cbdata = siz*sizeof(T);
+		} catch (...) {
           _width = _height = _depth = _spectrum = 0; _data = 0;
           throw CImgInstanceException(_cimg_instance
                                       "CImg() : Failed to allocate memory (%s) for image (%u,%u,%u,%u).",
@@ -8768,7 +8775,11 @@ namespace cimg_library {
       const unsigned int siz = dx*dy*dz*dc;
       if (siz) {
         _width = dx; _height = dy; _depth = dz; _spectrum = dc;
-        try { _data = new T[siz]; } catch (...) {
+        try 
+		{ 
+			_data = new T[siz];
+			_cbdata = siz*sizeof(T);
+		} catch (...) {
           _width = _height = _depth = _spectrum = 0; _data = 0;
           throw CImgInstanceException(_cimg_instance
                                       "CImg() : Failed to allocate memory (%s) for image (%u,%u,%u,%u).",
@@ -8798,7 +8809,10 @@ namespace cimg_library {
       const unsigned int siz = dx*dy*dz*dc;
       if (data_buffer && siz) {
         _width = dx; _height = dy; _depth = dz; _spectrum = dc;
-        try { _data = new T[siz]; } catch (...) {
+        try {
+			_data = new T[siz];
+			_cbdata = siz*sizeof(T);
+		} catch (...) {
           _width = _height = _depth = _spectrum = 0; _data = 0;
           throw CImgInstanceException(_cimg_instance
                                       "CImg() : Failed to allocate memory (%s) for image (%u,%u,%u,%u).",
@@ -8817,7 +8831,10 @@ namespace cimg_library {
         _width = dx; _height = dy; _depth = dz; _spectrum = dc; _is_shared = shared;
         if (_is_shared) _data = const_cast<T*>(data_buffer);
         else {
-          try { _data = new T[siz]; } catch (...) {
+          try {
+			  _data = new T[siz];
+			  _cbdata = siz*sizeof(T);
+		  } catch (...) {
             _width = _height = _depth = _spectrum = 0; _data = 0;
             throw CImgInstanceException(_cimg_instance
                                         "CImg() : Failed to allocate memory (%s) for image (%u,%u,%u,%u).",
@@ -8866,7 +8883,9 @@ namespace cimg_library {
       const unsigned int siz = img.size();
       if (img._data && siz) {
         _width = img._width; _height = img._height; _depth = img._depth; _spectrum = img._spectrum;
-        try { _data = new T[siz]; } catch (...) {
+        try {
+			_data = new T[siz];	_cbdata = siz*sizeof(T);
+		} catch (...) {
           _width = _height = _depth = _spectrum = 0; _data = 0;
           throw CImgInstanceException(_cimg_instance
                                       "CImg() : Failed to allocate memory (%s) for image (%u,%u,%u,%u).",
@@ -8884,7 +8903,7 @@ namespace cimg_library {
         _width = img._width; _height = img._height; _depth = img._depth; _spectrum = img._spectrum; _is_shared = img._is_shared;
         if (_is_shared) _data = const_cast<T*>(img._data);
         else {
-          try { _data = new T[siz]; } catch (...) {
+          try { _data = new T[siz]; _cbdata = siz*sizeof(T); } catch (...) {
             _width = _height = _depth = _spectrum = 0; _data = 0;
             throw CImgInstanceException(_cimg_instance
                                         "CImg() : Failed to allocate memory (%s) for image (%u,%u,%u,%u).",
@@ -8926,7 +8945,7 @@ namespace cimg_library {
       const unsigned int siz = img.size();
       if (img._data && siz) {
         _width = img._width; _height = img._height; _depth = img._depth; _spectrum = img._spectrum;
-        try { _data = new T[siz]; } catch (...) {
+        try { _data = new T[siz]; _cbdata = siz*sizeof(T); } catch (...) {
           _width = _height = _depth = _spectrum = 0; _data = 0;
           throw CImgInstanceException(_cimg_instance
                                       "CImg() : Failed to allocate memory (%s) for image (%u,%u,%u,%u).",
@@ -8944,7 +8963,7 @@ namespace cimg_library {
         _width = img._width; _height = img._height; _depth = img._depth; _spectrum = img._spectrum; _is_shared = shared;
         if (_is_shared) _data = const_cast<T*>(img._data);
         else {
-          try { _data = new T[siz]; } catch (...) {
+          try { _data = new T[siz]; _cbdata = siz*sizeof(T); } catch (...) {
             _width = _height = _depth = _spectrum = 0; _data = 0;
             throw CImgInstanceException(_cimg_instance
                                         "CImg() : Failed to allocate memory (%s) for image (%u,%u,%u,%u).",
@@ -9034,7 +9053,7 @@ namespace cimg_library {
                                       dx,dy,dz,dc);
         else {
           delete[] _data;
-          try { _data = new T[siz]; } catch (...) {
+          try { _data = new T[siz]; _cbdata = siz*sizeof(T); } catch (...) {
             _width = _height = _depth = _spectrum = 0; _data = 0;
             throw CImgInstanceException(_cimg_instance
                                         "assign() : Failed to allocate memory (%s) for image (%u,%u,%u,%u).",
@@ -9096,30 +9115,44 @@ namespace cimg_library {
       return *this;
     }
 
-    CImg<T>& assign(const T *const data_buffer, const unsigned int dx, const unsigned int dy=1,
-                    const unsigned int dz=1, const unsigned int dc=1) {
-      const unsigned int siz = dx*dy*dz*dc;
-      if (!data_buffer || !siz) return assign();
-      const unsigned int curr_siz = size();
-      if (data_buffer==_data && siz==curr_siz) return assign(dx,dy,dz,dc);
-      if (_is_shared || data_buffer+siz<_data || data_buffer>=_data+size()) {
-        assign(dx,dy,dz,dc);
-        if (_is_shared) std::memmove(_data,data_buffer,siz*sizeof(T));
-        else std::memcpy(_data,data_buffer,siz*sizeof(T));
-      } else {
-        T *new_data = 0;
-        try { new_data = new T[siz]; } catch (...) {
-          _width = _height = _depth = _spectrum = 0; _data = 0;
-          throw CImgInstanceException(_cimg_instance
-                                      "assign() : Failed to allocate memory (%s) for image (%u,%u,%u,%u).",
-                                      cimg_instance,
-                                      cimg::strbuffersize(dx*dy*dz*dc*sizeof(T)),dx,dy,dz,dc);
-        }
-        std::memcpy(new_data,data_buffer,siz*sizeof(T));
-        delete[] _data; _data = new_data; _width = dx; _height = dy; _depth = dz; _spectrum = dc;
-      }
-      return *this;
-    }
+	CImg<T>& assign(const T *const data_buffer, const unsigned int dx, const unsigned int dy = 1,
+		const unsigned int dz = 1, const unsigned int dc = 1) {
+		const unsigned int siz = dx*dy*dz*dc;
+		if (!data_buffer || !siz) return assign();
+		const unsigned int curr_siz = size();
+		if (data_buffer == _data && siz == curr_siz) return assign(dx, dy, dz, dc);
+		if (_is_shared || data_buffer + siz < _data || data_buffer >= _data + size()) 
+		{
+			assign(dx, dy, dz, dc);
+			if (_is_shared) {
+				std::memmove(_data, data_buffer, siz*sizeof(T));
+			}
+			else {
+				if (_cbdata < siz*sizeof(T))
+				{
+					std::memcpy(_data, data_buffer, _cbdata);
+				}
+				else
+				{
+					std::memcpy(_data, data_buffer, siz*sizeof(T));
+				}
+			}
+		}
+		else {
+			T *new_data = 0;
+			try { new_data = new T[siz]; }
+			catch (...) {
+				_width = _height = _depth = _spectrum = 0; _data = 0;
+				throw CImgInstanceException(_cimg_instance
+					"assign() : Failed to allocate memory (%s) for image (%u,%u,%u,%u).",
+					cimg_instance,
+					cimg::strbuffersize(dx*dy*dz*dc*sizeof(T)), dx, dy, dz, dc);
+			}
+			std::memcpy(new_data, data_buffer, siz*sizeof(T));
+			delete[] _data; _data = new_data; _width = dx; _height = dy; _depth = dz; _spectrum = dc;
+		}
+		return *this;
+	}
 
     //! In-place version of the previous constructor, allowing to force the shared state of the instance image.
     template<typename t>

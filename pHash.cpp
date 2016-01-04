@@ -608,7 +608,6 @@ int ph_dct_imagehash_from_buffer(CImg<uint8_t> file,ulong64 &hash){
 			hash |= one;
 		one = one << 1;
 	}
-
 	delete C;
 
 	return 0;
