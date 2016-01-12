@@ -1,8 +1,9 @@
-#pragma omp
+//#pragma comment(lib, "mysqlcppconn-static")
 #ifndef NODE_H
 #define NODE_H
 #include <iostream> 
 #include "bmp.h"
+#include "md5.h"
 #include "pHash.h"
 #include "node.h"
 #include <fstream>

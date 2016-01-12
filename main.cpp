@@ -47,6 +47,33 @@ err_exit:
 bool sort_by_hash(const pair<ulong64,int> &lhs, const pair<ulong64,int> &rhs) { return lhs.first < rhs.first; }
 bool sort_by_hash_file(const pair<ulong64,string> &lhs, const pair<ulong64,string> &rhs) { return lhs.first < rhs.first; }
 bool sort_by_file_type(const pair<string,int> &lhs, const pair<string,int> &rhs) { return lhs.second < rhs.second; }
+char *str2md5(char *str, int length) {
+	int n;
+	MD5_CTX c;
+	unsigned char digest[16];
+	char *out = (char*)malloc(33);
+
+	MD5Init(&c);
+
+	while (length > 0) {
+		if (length > 512) {
+			MD5Update(&c, (unsigned char*)str, 512);
+		} else {
+			MD5Update(&c, (unsigned char*)str, length);
+		}
+		length -= 512;
+		str += 512;
+	}
+
+	MD5Final(digest, &c);
+
+	for (n = 0; n < 16; ++n) {
+		snprintf(&(out[n * 2]), 16 * 2, "%02x", (unsigned int)digest[n]);
+	}
+
+	return out;
+}
+
 /*
 params:
 	fullpath - path to file
@@ -96,11 +123,17 @@ unsigned int __stdcall examine_proc(void * args)
 				free(buffer);
 				continue;
 			}
+			/*
+			INSERT INTO `hashes` (`hash`) VALUES ('%I64u') \nON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), `hash`='%I64u';\nINSERT INTO `paths` (`path`,`hashid`,`hashpath`) VALUES ('%s',LAST_INSERT_ID(),md5('%s'));\n
+			*/
 			string spath(pArgs->fullpath);
 			string ext = spath.substr(spath.find_last_of(".") + 1);
 			std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-			printf("%s,%s,%I64u\n", pArgs->fullpath, ext.c_str(),hash1);
-			int err2 = fprintf(outfile, "%s,%s,%I64u\n", pArgs->fullpath, ext.c_str(), hash1);
+			char * md5 = str2md5(pArgs->fullpath, strlen(pArgs->fullpath));
+			printf("INSERT IGNORE INTO `hashes` (`hash`) VALUES ('%I64u') \nON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), `hash`='%I64u';\nINSERT IGNORE INTO `paths` (`path`,`hashid`,`hashpath`) VALUES ('%s',LAST_INSERT_ID(),'%s');\n", 
+				hash1, hash1,pArgs->fullpath, md5);
+			int err2 = fprintf(outfile, "INSERT IGNORE INTO `hashes` (`hash`) VALUES ('%I64u') \nON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), `hash`='%I64u';\nINSERT IGNORE INTO `paths` (`path`,`hashid`,`hashpath`) VALUES ('%s',LAST_INSERT_ID(),'%s');\n",
+				hash1, hash1, pArgs->fullpath, md5);
 			fflush(outfile);
 			free(buffer);
 		}
@@ -266,14 +299,54 @@ void OutputSearch()
 		}
 	}
 }
+/*
+int connectMysql()
+{
+	try {
+		sql::Driver *driver;
+		sql::Connection *con;
+		sql::Statement *stmt;
+		sql::ResultSet *res;
+
+		/* Create a connection 
+		driver = get_driver_instance();
+		con = driver->connect("tcp://10.0.0.10:3306", "root", "password");
+		/* Connect to the MySQL test database 
+		con->setSchema("similarity");
+
+		stmt = con->createStatement();
+		res = stmt->executeQuery("SELECT 'Hello World!' AS _message");
+		while (res->next()) {
+			cout << "\t... MySQL replies: ";
+			/* Access column data by alias or column name 
+			cout << res->getString("_message") << endl;
+			cout << "\t... MySQL says it again: ";
+			/* Access column fata by numeric offset, 1 is the first column 
+			cout << res->getString(1) << endl;
+		}
+		delete res;
+		delete stmt;
+		delete con;
+
+	} catch (sql::SQLException &e) {
+		cout << "# ERR: SQLException in " << __FILE__;
+		cout << "(" << __FUNCTION__ << ") on line "	<< __LINE__ << endl;
+		cout << "# ERR: " << e.what();
+		cout << " (MySQL error code: " << e.getErrorCode();
+		cout << ", SQLState: " << e.getSQLState() << " )" << endl;
+	}
+	return 0;
+}
+*/
 int main(int argc, char* argv[]) { 
+	//connectMysql();
 	outfile = fopen(".\\outfile.txt","w+");
 	outfile_translation = fopen(".\\outfile_translation.txt","w+");
 	if(outfile != NULL)
 	{
-		fprintf(outfile,"4 1 4\n");
+		fprintf(outfile,"use similarity;\n");
 	}
-	SearchDrive("","C:",true,false);
+	SearchDrive("","C:\\Windows\\System32",true,false);
 	//OutputSearch();
 	PrintMappings();
 	if(outfile != NULL)
