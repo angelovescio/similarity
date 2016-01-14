@@ -126,15 +126,13 @@ unsigned int __stdcall examine_proc(void * args)
 			/*
 			INSERT INTO `hashes` (`hash`) VALUES ('%I64u') \nON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), `hash`='%I64u';\nINSERT INTO `paths` (`path`,`hashid`,`hashpath`) VALUES ('%s',LAST_INSERT_ID(),md5('%s'));\n
 			*/
-			string spath(pArgs->fullpath);
+			/*string spath(pArgs->fullpath);
 			string ext = spath.substr(spath.find_last_of(".") + 1);
-			std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-			char * md5 = str2md5(pArgs->fullpath, strlen(pArgs->fullpath));
-			printf("INSERT IGNORE INTO `hashes` (`hash`) VALUES ('%I64u') \nON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), `hash`='%I64u';\nINSERT IGNORE INTO `paths` (`path`,`hashid`,`hashpath`) VALUES ('%s',LAST_INSERT_ID(),'%s');\n", 
-				hash1, hash1,pArgs->fullpath, md5);
-			int err2 = fprintf(outfile, "INSERT IGNORE INTO `hashes` (`hash`) VALUES ('%I64u') \nON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), `hash`='%I64u';\nINSERT IGNORE INTO `paths` (`path`,`hashid`,`hashpath`) VALUES ('%s',LAST_INSERT_ID(),'%s');\n",
-				hash1, hash1, pArgs->fullpath, md5);
-			fflush(outfile);
+			std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);*/
+			//char * md5 = str2md5(pArgs->fullpath, strlen(pArgs->fullpath));
+			int err2 = fprintf(outfile, "call insertHashes(%I64u,'%s');\n",
+				hash1, pArgs->fullpath);
+			//fflush(outfile);
 			free(buffer);
 		}
 
