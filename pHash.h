@@ -320,7 +320,7 @@ int ph_dct_imagehash(const char* file,ulong64 &hash);
 /param hash of type ulong64
 /return <0 for error, > for success
 */
-int ph_dct_imagehash_from_buffer(CImg<uint8_t> file,ulong64 &hash);
+int ph_dct_imagehash_from_buffer(CImg<uint8_t> file,ulong64 &hash, char* path);
 
 int ph_bmb_imagehash(const char *file, uint8_t method, BinHash **ret_hash);
 #endif

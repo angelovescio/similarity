@@ -23,6 +23,8 @@ D Grant Starkweather - dstarkweather@phash.org
 */
 
 #include "pHash.h"
+#include <Windows.h>
+#include <Shlwapi.h>
 #ifndef _WIN32
 #include "config.h"
 #else
@@ -566,7 +568,7 @@ int ph_dct_imagehash(const char* file,ulong64 &hash){
 
 	return 0;
 }
-int ph_dct_imagehash_from_buffer(CImg<uint8_t> file,ulong64 &hash){
+int ph_dct_imagehash_from_buffer(CImg<uint8_t> file,ulong64 &hash, char* path){
 
 	if (!file){
 		return -1;
@@ -609,7 +611,10 @@ int ph_dct_imagehash_from_buffer(CImg<uint8_t> file,ulong64 &hash){
 		one = one << 1;
 	}
 	delete C;
-
+	char img_path[260] = "";
+	
+	snprintf(img_path, 260, "images\\%I64u_%s.bmp", hash, PathFindFileName(path));
+	img.save(img_path);
 	return 0;
 }
 

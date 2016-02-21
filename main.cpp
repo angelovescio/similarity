@@ -91,7 +91,7 @@ unsigned int __stdcall examine_proc(void * args)
 	int filesize = 0;
 	int ftype = 0;
 	//may need to be 0xc00 since x*y*z*alpha == that
-	int arr_size1 = genbmp(mainvector,&filesize,pArgs->fullpath,0xc00);
+	int arr_size1 = genbmp(mainvector,&filesize,pArgs->fullpath,0x1000);
 	if (arr_size1 == 0)
 	{
 		return 0;
@@ -116,7 +116,8 @@ unsigned int __stdcall examine_proc(void * args)
 			}
 			
 			cimg_library::CImg<uint8_t> img2(buffer, pArgs->x, pArgs->y,1, pArgs->z,1);
-			int err1 = ph_dct_imagehash_from_buffer(img2, hash1);
+			
+			int err1 = ph_dct_imagehash_from_buffer(img2, hash1,pArgs->fullpath);
 			//null hash == 54086765383280
 			if (hash1 == 54086765383280)
 			{
@@ -132,6 +133,7 @@ unsigned int __stdcall examine_proc(void * args)
 			//char * md5 = str2md5(pArgs->fullpath, strlen(pArgs->fullpath));
 			int err2 = fprintf(outfile, "call insertHashes(%I64u,'%s');\n",
 				hash1, pArgs->fullpath);
+			
 			//fflush(outfile);
 			free(buffer);
 		}
@@ -344,7 +346,7 @@ int main(int argc, char* argv[]) {
 	{
 		fprintf(outfile,"use similarity;\n");
 	}
-	SearchDrive("","C:\\Windows\\System32",true,false);
+	SearchDrive("","C:\\Users\\vesh\\Documents\\Visual Studio 2015\\Projects\\similarity\\corpus",true,false);
 	//OutputSearch();
 	PrintMappings();
 	if(outfile != NULL)

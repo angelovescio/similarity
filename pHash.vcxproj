@@ -102,7 +102,7 @@
       <DisableSpecificWarnings>4005;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>zlib.lib;jpeg.lib;libpng.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Shlwapi.lib;zlib.lib;jpeg.lib;libpng.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <StackCommitSize>0</StackCommitSize>
@@ -175,7 +175,7 @@
   <ItemGroup>
     <ClCompile Include="dirent.c" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="md5.c" />
+    <ClCompile Include="md5.cpp" />
     <ClCompile Include="node.cpp" />
     <ClCompile Include="ph_fft.c" />
     <ClCompile Include="pHash.cpp" />
