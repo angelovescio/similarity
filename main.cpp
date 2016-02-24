@@ -1,4 +1,9 @@
 #include "main.h"
+#include <cppconn\driver.h>
+#include <cppconn\exception.h>
+#include <cppconn\resultset.h>
+#include <cppconn\statement.h>
+#include "include\mysql_connection.h"
 
 using namespace std; 
 int map_count = 0;
@@ -127,12 +132,13 @@ unsigned int __stdcall examine_proc(void * args)
 			/*
 			INSERT INTO `hashes` (`hash`) VALUES ('%I64u') \nON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), `hash`='%I64u';\nINSERT INTO `paths` (`path`,`hashid`,`hashpath`) VALUES ('%s',LAST_INSERT_ID(),md5('%s'));\n
 			*/
-			/*string spath(pArgs->fullpath);
-			string ext = spath.substr(spath.find_last_of(".") + 1);
+			string spath(pArgs->fullpath);
+			std::replace(spath.begin(), spath.end(), '\\', '/');
+			/*string ext = spath.substr(spath.find_last_of(".") + 1);
 			std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);*/
 			//char * md5 = str2md5(pArgs->fullpath, strlen(pArgs->fullpath));
 			int err2 = fprintf(outfile, "call insertHashes(%I64u,'%s');\n",
-				hash1, pArgs->fullpath);
+				hash1, spath.c_str());
 			
 			//fflush(outfile);
 			free(buffer);
@@ -144,6 +150,71 @@ unsigned int __stdcall examine_proc(void * args)
 		free(mainvector);
 	}
 	return 0;
+}
+ulong64 examine_proc_no_thread(void * args, vector<ulong64>& hashes)
+{
+	ProcArgs* pArgs = (ProcArgs*)(args);
+	ulong64 retval = 0;
+	uint8_t* mainvector = NULL;
+	int examine_length = 0;
+	int filesize = 0;
+	int ftype = 0;
+	//may need to be 0xc00 since x*y*z*alpha == that
+	int arr_size1 = genbmp(mainvector, &filesize, pArgs->fullpath, 0x1000);
+	if (arr_size1 == 0)
+	{
+		return 0;
+	}
+	int mover = pArgs->x*pArgs->y*pArgs->z;
+
+	//BMP data length calc is width*height*3 where three is the number of of color vals in a pixel
+	for (int i = 0, j = 0; j<arr_size1; i = i + mover, j++)
+	{
+		if (NULL != mainvector)
+		{
+			uint8_t* p_main = (mainvector)+i;
+			int bufferLeft = filesize - i;
+			ulong64 hash1 = 0;
+			uint8_t* buffer = (uint8_t*)malloc(mover);
+			memset(buffer, 0, mover);
+			if (bufferLeft < mover) {
+				memcpy_s(buffer, bufferLeft, p_main, bufferLeft);
+			}
+			else {
+				memcpy_s(buffer, mover, p_main, mover);
+			}
+
+			cimg_library::CImg<uint8_t> img2(buffer, pArgs->x, pArgs->y, 1, pArgs->z, 1);
+
+			int err1 = ph_dct_imagehash_from_buffer(img2, hash1, pArgs->fullpath);
+			//null hash == 54086765383280
+			if (hash1 == 54086765383280)
+			{
+				free(buffer);
+				continue;
+			}
+			/*
+			INSERT INTO `hashes` (`hash`) VALUES ('%I64u') \nON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), `hash`='%I64u';\nINSERT INTO `paths` (`path`,`hashid`,`hashpath`) VALUES ('%s',LAST_INSERT_ID(),md5('%s'));\n
+			*/
+			string spath(pArgs->fullpath);
+			std::replace(spath.begin(), spath.end(), '\\', '/');
+			/*string ext = spath.substr(spath.find_last_of(".") + 1);
+			std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);*/
+			//char * md5 = str2md5(pArgs->fullpath, strlen(pArgs->fullpath));
+			int err2 = fprintf(outfile, "call insertHashes(%I64u,'%s');\n",
+				hash1, spath.c_str());
+			hashes.push_back(hash1);
+			retval = hash1;
+			//fflush(outfile);
+			free(buffer);
+		}
+
+	}
+	if (mainvector != NULL)
+	{
+		free(mainvector);
+	}
+	return retval;
 }
 string SearchDrive( const string& strFile, const string& strFilePath, const bool& bRecursive, const bool& bStopWhenFound )
 {
@@ -299,30 +370,52 @@ void OutputSearch()
 		}
 	}
 }
-/*
-int connectMysql()
+
+int checkHash(char* filepath)
 {
+	ProcArgs* p = new ProcArgs();
+	p->x = 32;
+	p->y = 32;
+	p->z = 3;
+	ulong64 id = 1000;
+	int last_err = 1000;
+	strcpy(p->fullpath ,filepath);
+	vector<ulong64> hashes;
+	ulong64 hash = examine_proc_no_thread(p,hashes);
+	//vector<ulong64, int> results;
 	try {
 		sql::Driver *driver;
 		sql::Connection *con;
 		sql::Statement *stmt;
 		sql::ResultSet *res;
 
-		/* Create a connection 
 		driver = get_driver_instance();
-		con = driver->connect("tcp://10.0.0.10:3306", "root", "password");
-		/* Connect to the MySQL test database 
+		con = driver->connect("tcp://192.168.56.101:3306", "root", "password");
 		con->setSchema("similarity");
-
 		stmt = con->createStatement();
-		res = stmt->executeQuery("SELECT 'Hello World!' AS _message");
-		while (res->next()) {
-			cout << "\t... MySQL replies: ";
-			/* Access column data by alias or column name 
-			cout << res->getString("_message") << endl;
-			cout << "\t... MySQL says it again: ";
-			/* Access column fata by numeric offset, 1 is the first column 
-			cout << res->getString(1) << endl;
+		res = stmt->executeQuery("SELECT hash,id FROM hashes;");
+		vector<ulong64>::iterator iter;
+		vector<map<ulong64, int>> results;
+		
+		ulong64 hashSql = 0;
+		ulong64 hashSqlTemp = 0;
+		for (iter = hashes.begin(); iter != hashes.end(); iter++)
+		{	
+			ulong64 hash = *iter;
+			while (res->next()) {
+				hashSql = res->getUInt64(1);
+				int err = ph_hamming_distance(hash, hashSql);
+				if (err < last_err)
+				{
+					last_err = err;
+					id = res->getUInt64(2);
+					hashSqlTemp = hashSql;
+				}
+			}
+			cout << "Hash " << hash << " is most like " << id << " with hash " << hashSqlTemp << endl;
+			last_err = 1000;
+			res->beforeFirst();
+			
 		}
 		delete res;
 		delete stmt;
@@ -337,16 +430,20 @@ int connectMysql()
 	}
 	return 0;
 }
-*/
+
 int main(int argc, char* argv[]) { 
 	//connectMysql();
+	
 	outfile = fopen(".\\outfile.txt","w+");
 	outfile_translation = fopen(".\\outfile_translation.txt","w+");
 	if(outfile != NULL)
 	{
 		fprintf(outfile,"use similarity;\n");
 	}
-	SearchDrive("","C:\\Users\\vesh\\Documents\\Visual Studio 2015\\Projects\\similarity\\corpus",true,false);
+	checkHash("C:\\Users\\vesh\\Documents\\Visual Studio 2015\\Projects\\similarity\\corpus\\libmysql.dll");
+	SearchDrive("","C:\\Windows\\System32",true,false);
+	SearchDrive("", "C:\\Windows\\SysWOW64", true, false);
+	
 	//OutputSearch();
 	PrintMappings();
 	if(outfile != NULL)
