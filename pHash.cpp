@@ -611,10 +611,10 @@ int ph_dct_imagehash_from_buffer(CImg<uint8_t> file,ulong64 &hash, char* path){
 		one = one << 1;
 	}
 	delete C;
-	char img_path[260] = "";
+	/*char img_path[260] = "";
 	
 	snprintf(img_path, 260, "images\\%I64u_%s.bmp", hash, PathFindFileName(path));
-	img.save(img_path);
+	img.save(img_path);*/
 	return 0;
 }
 

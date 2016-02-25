@@ -96,7 +96,7 @@ unsigned int __stdcall examine_proc(void * args)
 	int filesize = 0;
 	int ftype = 0;
 	//may need to be 0xc00 since x*y*z*alpha == that
-	int arr_size1 = genbmp(mainvector,&filesize,pArgs->fullpath,0x1000);
+	int arr_size1 = genbmp(mainvector,&filesize,pArgs->fullpath,0xc00);
 	if (arr_size1 == 0)
 	{
 		return 0;
@@ -160,7 +160,7 @@ ulong64 examine_proc_no_thread(void * args, vector<ulong64>& hashes)
 	int filesize = 0;
 	int ftype = 0;
 	//may need to be 0xc00 since x*y*z*alpha == that
-	int arr_size1 = genbmp(mainvector, &filesize, pArgs->fullpath, 0x1000);
+	int arr_size1 = genbmp(mainvector, &filesize, pArgs->fullpath, 0xc00);
 	if (arr_size1 == 0)
 	{
 		return 0;
@@ -386,33 +386,54 @@ int checkHash(char* filepath)
 	try {
 		sql::Driver *driver;
 		sql::Connection *con;
-		sql::Statement *stmt;
-		sql::ResultSet *res;
+		sql::Statement *stmt,*stmt2,*stmt3;
+		sql::ResultSet *res,*res2;
 
 		driver = get_driver_instance();
-		con = driver->connect("tcp://192.168.56.101:3306", "root", "password");
+		con = driver->connect("tcp://192.168.56.102:3306", "root", "password");
 		con->setSchema("similarity");
 		stmt = con->createStatement();
 		res = stmt->executeQuery("SELECT hash,id FROM hashes;");
 		vector<ulong64>::iterator iter;
-		vector<map<ulong64, int>> results;
 		
 		ulong64 hashSql = 0;
 		ulong64 hashSqlTemp = 0;
+		char path[260];
 		for (iter = hashes.begin(); iter != hashes.end(); iter++)
 		{	
 			ulong64 hash = *iter;
 			while (res->next()) {
 				hashSql = res->getUInt64(1);
+				
 				int err = ph_hamming_distance(hash, hashSql);
 				if (err < last_err)
 				{
 					last_err = err;
 					id = res->getUInt64(2);
 					hashSqlTemp = hashSql;
+					char qBuffer[1024] = "";
+					sprintf(qBuffer, "SELECT pathid FROM paths WHERE hashid='%llu' limit 1;", id);
+					res2 = stmt->executeQuery(qBuffer);
+					ulong64 pathid = 0;
+					while (res2->next())
+					{
+						pathid = res2->getUInt64(1);
+					}
+
+					memset(qBuffer, 0, sizeof(qBuffer));
+					sprintf(qBuffer, "SELECT path FROM hashpaths WHERE id='%llu' limit 1;", pathid);
+					res2 = stmt->executeQuery(qBuffer);
+					
+					while (res2->next())
+					{
+						sprintf(path, "%s", res2->getString("Path").c_str());
+					}
+					cout << "Better match with confidence "<< last_err <<" is path: " << path << endl;
 				}
 			}
-			cout << "Hash " << hash << " is most like " << id << " with hash " << hashSqlTemp << endl;
+			
+			
+			cout << "Hash " << hash << " is most like " << id << " with hash " << hashSqlTemp << " and path " << path << endl;
 			last_err = 1000;
 			res->beforeFirst();
 			
@@ -440,9 +461,10 @@ int main(int argc, char* argv[]) {
 	{
 		fprintf(outfile,"use similarity;\n");
 	}
-	checkHash("C:\\Users\\vesh\\Documents\\Visual Studio 2015\\Projects\\similarity\\corpus\\libmysql.dll");
-	SearchDrive("","C:\\Windows\\System32",true,false);
-	SearchDrive("", "C:\\Windows\\SysWOW64", true, false);
+	checkHash("C:\\Users\\vesh\\Documents\\Visual Studio 2015\\Projects\\similarity\\corpus\\inject.dll");
+	//SearchDrive("","C:\\Users\\vesh\\Documents\\Visual Studio 2015\\Projects\\similarity\\corpus", true, false);
+	//SearchDrive("","C:\\Windows\\System32",true,false);
+	//SearchDrive("", "C:\\Windows\\SysWOW64", true, false);
 	
 	//OutputSearch();
 	PrintMappings();
