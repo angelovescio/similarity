@@ -1,18 +1,14 @@
-//#pragma comment(lib, "mysqlcppconn-static")
-#ifndef NODE_H
-#define NODE_H
 #include <iostream> 
 #include "bmp.h"
 #include "md5.h"
+#include "MemWalk.h"
 #include "pHash.h"
-#include "node.h"
 #include <fstream>
 #include <vector>
 #include <algorithm>
 #include <map>
 #include <process.h>
 #include <windows.h>
-//#include <magic.h>
 #include <stdio.h>
 
 using namespace std;
@@ -42,5 +38,3 @@ struct HashList{
 	int chunk2;
 	int hamming_distance;
 };
-
-#endif
