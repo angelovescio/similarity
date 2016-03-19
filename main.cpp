@@ -341,7 +341,7 @@ string SearchDrive(const string& strFile, const string& strFilePath, const bool&
 /// <param name="pass">The pass.</param>
 /// <param name="port">The port.</param>
 /// <returns></returns>
-int checkHash(char* filepath, char name, char* db="similarity", char* user="root", char* pass="password", int port = 3306)
+int checkHash(char filepath[1024], char name[1024], char db[1024] ="similarity", char user[1024] ="root", char pass[1024] ="password", int port = 3306)
 {
 	ProcArgs* p = new ProcArgs();
 	p->x = 32;
@@ -434,6 +434,7 @@ int main(int argc, char **argv) {
 	char serv[1024] = "";
 	char exe[1024] = "";
 	char dir[1024] = "";
+	char    *optarg;                /* argument associated with option */
 	// Parse and set command line arguments
 	while ((option_char = getopt(argc, argv, "ifupd:h")) != -1) {
 		switch (option_char) {
