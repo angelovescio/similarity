@@ -1,4 +1,5 @@
 #include "main.h"
+#include <getopt.h>
 #include <cppconn\driver.h>
 #include <cppconn\exception.h>
 #include <cppconn\resultset.h>
@@ -6,6 +7,7 @@
 #include "include\mysql_connection.h"
 
 using namespace std; 
+
 int map_count = 0;
 CRITICAL_SECTION critical;
 map<string,int,comparer> file_type_mapping;
@@ -14,7 +16,15 @@ vector<pair<ulong64,string>> file_map;
 FILE* outfile = NULL;
 FILE* outfile_translation = NULL;
 uint8_t numThreads = 8;
-int genbmp(uint8_t* &mainvector,int* filesize, const char* fname, int chunk_size=256)
+/// <summary>
+/// Genbmps the specified mainvector.
+/// </summary>
+/// <param name="mainvector">The mainvector.</param>
+/// <param name="filesize">The filesize.</param>
+/// <param name="fname">The fname.</param>
+/// <param name="chunk_size">The chunk_size.</param>
+/// <returns></returns>
+int genbmp(uint8_t* &mainvector, int* filesize, const char* fname, int chunk_size = 256)
 {
 	HANDLE file;
 	//int size = 0;
@@ -49,9 +59,32 @@ int genbmp(uint8_t* &mainvector,int* filesize, const char* fname, int chunk_size
 err_exit:
 	return arrsize;
 }
-bool sort_by_hash(const pair<ulong64,int> &lhs, const pair<ulong64,int> &rhs) { return lhs.first < rhs.first; }
-bool sort_by_hash_file(const pair<ulong64,string> &lhs, const pair<ulong64,string> &rhs) { return lhs.first < rhs.first; }
-bool sort_by_file_type(const pair<string,int> &lhs, const pair<string,int> &rhs) { return lhs.second < rhs.second; }
+/// <summary>
+/// Sort_by_hashes the specified LHS.
+/// </summary>
+/// <param name="lhs">The LHS.</param>
+/// <param name="rhs">The RHS.</param>
+/// <returns></returns>
+bool sort_by_hash(const pair<ulong64, int> &lhs, const pair<ulong64, int> &rhs) { return lhs.first < rhs.first; }
+/// <summary>
+/// Sort_by_hash_files the specified LHS.
+/// </summary>
+/// <param name="lhs">The LHS.</param>
+/// <param name="rhs">The RHS.</param>
+/// <returns></returns>
+bool sort_by_hash_file(const pair<ulong64, string> &lhs, const pair<ulong64, string> &rhs) { return lhs.first < rhs.first; }
+/// <summary>
+/// Sort_by_file_types the specified LHS.
+/// </summary>
+/// <param name="lhs">The LHS.</param>
+/// <param name="rhs">The RHS.</param>
+/// <returns></returns>
+bool sort_by_file_type(const pair<string, int> &lhs, const pair<string, int> &rhs) { return lhs.second < rhs.second; }
+/// <summary>
+/// </summary>
+/// <param name="str">The string.</param>
+/// <param name="length">The length.</param>
+/// <returns></returns>
 char *str2md5(char *str, int length) {
 	int n;
 	MD5_CTX c;
@@ -87,7 +120,11 @@ params:
 	z - depth
 Increase the aperture by fiddlign with x,y
 */
-//int examine_proc(const char* fullpath,int x=32, int y=32, int z=3)
+/// <summary>
+/// Examine_procs the specified arguments.
+/// </summary>
+/// <param name="args">The arguments.</param>
+/// <returns></returns>
 unsigned int __stdcall examine_proc(void * args)
 {
 	ProcArgs* pArgs = (ProcArgs*)(args);
@@ -151,6 +188,12 @@ unsigned int __stdcall examine_proc(void * args)
 	}
 	return 0;
 }
+/// <summary>
+/// Examine_proc_no_threads the specified arguments.
+/// </summary>
+/// <param name="args">The arguments.</param>
+/// <param name="hashes">The hashes.</param>
+/// <returns></returns>
 ulong64 examine_proc_no_thread(void * args, vector<ulong64>& hashes)
 {
 	ProcArgs* pArgs = (ProcArgs*)(args);
@@ -216,7 +259,15 @@ ulong64 examine_proc_no_thread(void * args, vector<ulong64>& hashes)
 	}
 	return retval;
 }
-string SearchDrive( const string& strFile, const string& strFilePath, const bool& bRecursive, const bool& bStopWhenFound )
+/// <summary>
+/// Searches the drive.
+/// </summary>
+/// <param name="strFile">The string file.</param>
+/// <param name="strFilePath">The string file path.</param>
+/// <param name="bRecursive">The b recursive.</param>
+/// <param name="bStopWhenFound">The b stop when found.</param>
+/// <returns></returns>
+string SearchDrive(const string& strFile, const string& strFilePath, const bool& bRecursive, const bool& bStopWhenFound)
 {
 	string strFoundFilePath;
 	WIN32_FIND_DATA file;
@@ -279,99 +330,18 @@ string SearchDrive( const string& strFile, const string& strFilePath, const bool
 	}
 	return strFoundFilePath;
 }
-int AttemptInsert(string filetype)
-{
-	int retval = 0;
-	map_count = file_type_mapping.size();
-	file_type_mapping.insert(pair<string,int>(filetype,map_count));
-	if(map_count < file_type_mapping.size())
-	{
-		retval = file_type_mapping.size();
-	}
-	else
-	{
-		map<string,int>::iterator it = file_type_mapping.find(filetype);
-		retval = it->second;
-	}
-	return retval;
-}
-void PrintMappings()
-{
-	FILE* mapping_file =NULL;
-	mapping_file = fopen(".\\mappings.txt","w+");
-	if(mapping_file !=NULL)
-	{
-		vector<pair<string,int>> temp_map;
-		map<string,int>::iterator it = file_type_mapping.begin();
-		for(;it!=file_type_mapping.end();it++)
-		{
-			string s = it->first;
-			int t = it->second;
-			temp_map.push_back(pair<string,int>(s,t));
-		}
-		sort(temp_map.begin(),temp_map.end(),sort_by_file_type);
-		vector<pair<string,int>>::iterator it2 = temp_map.begin();
-		for(;it2!=temp_map.end();it2++)
-		{
-			string s = it2->first;
-			int t = it2->second;
-			//fprintf(mapping_file,"##%s##\t##%d##\n",s.c_str(),t);
-		}
-		if(mapping_file != NULL)
-		{
-			fclose(mapping_file);
-		}
-	}
-}
-//string DetectFileType(const char* filename)
-//{
-//	const char *magic_full;
-//	magic_t magic_cookie;
-//	/*MAGIC_MIME tells magic to return a mime of the file, but you can specify different things*/
-//	magic_cookie = magic_open(MAGIC_CONTINUE);
-//	if (magic_cookie == NULL) {
-//		printf("unable to initialize magic library\n");
-//		return "";
-//	}
-//	if (magic_load(magic_cookie, "magic.def") != 0) {
-//		printf("cannot load magic database - %s\n", magic_error(magic_cookie));
-//		magic_close(magic_cookie);
-//		return "";
-//	}
-//	magic_full = magic_file(magic_cookie, filename);
-//	string retval(magic_full);
-//	magic_close(magic_cookie);
-//	return retval;
-//}
-void OutputSearch()
-{
-	sort(hash_map.begin(),hash_map.end(),sort_by_hash);
-	for(vector<pair<ulong64,int>>::iterator it = hash_map.begin();
-		it != hash_map.end();it++)
-	{
-		if(outfile != NULL)
-		{
-			ulong64 u = it->first;
-			int t = it->second;
-			fprintf(outfile,"%I64u\n",u);
-			fprintf(outfile,"%d\n",t);
-		}
-	}
-	sort(file_map.begin(),file_map.end(),sort_by_hash_file);
-	for(vector<pair<ulong64,string>>::iterator it = file_map.begin();
-		it != file_map.end();it++)
-	{
-		if(outfile_translation != NULL)
-		{
-			ulong64 u = it->first;
-			string t = it->second;
-			fprintf(outfile_translation,"%I64u\n",u);
-			fprintf(outfile_translation,"%s\n",t.c_str());
-		}
-	}
-}
 
-int checkHash(char* filepath)
+/// <summary>
+/// Checks the hash.
+/// </summary>
+/// <param name="filepath">The filepath.</param>
+/// <param name="name">The name.</param>
+/// <param name="db">The database.</param>
+/// <param name="user">The user.</param>
+/// <param name="pass">The pass.</param>
+/// <param name="port">The port.</param>
+/// <returns></returns>
+int checkHash(char* filepath, char name, char* db="similarity", char* user="root", char* pass="password", int port = 3306)
 {
 	ProcArgs* p = new ProcArgs();
 	p->x = 32;
@@ -380,6 +350,7 @@ int checkHash(char* filepath)
 	ulong64 id = 1000;
 	int last_err = 1000;
 	strcpy(p->fullpath ,filepath);
+	char host[1024] = "";
 	vector<ulong64> hashes;
 	ulong64 hash = examine_proc_no_thread(p,hashes);
 	//vector<ulong64, int> results;
@@ -388,10 +359,11 @@ int checkHash(char* filepath)
 		sql::Connection *con;
 		sql::Statement *stmt,*stmt2,*stmt3;
 		sql::ResultSet *res,*res2;
-
+		sprintf_s(host, "tcp://%s:%d", name, port);
 		driver = get_driver_instance();
-		con = driver->connect("tcp://192.168.56.102:3306", "root", "password");
-		con->setSchema("similarity");
+		//con = driver->connect("tcp://192.168.56.102:3306", "root", "password");
+		con = driver->connect(host, user, pass);
+		con->setSchema(db);
 		stmt = con->createStatement();
 		res = stmt->executeQuery("SELECT hash,id FROM hashes;");
 		vector<ulong64>::iterator iter;
@@ -452,29 +424,72 @@ int checkHash(char* filepath)
 	return 0;
 }
 
-int main(int argc, char* argv[]) { 
-	//connectMysql();
-	
-	outfile = fopen(".\\outfile.txt","w+");
-	outfile_translation = fopen(".\\outfile_translation.txt","w+");
-	if(outfile != NULL)
-	{
-		fprintf(outfile,"use similarity;\n");
+int main(int argc, char **argv) {
+	int option_char, i, rc = 0;
+	int pid = -1;
+	char user[1024] ="";
+	char pass[1024] = "";
+	char db[1024] = "";
+	char file[1024] = "";
+	char serv[1024] = "";
+	char exe[1024] = "";
+	char dir[1024] = "";
+	// Parse and set command line arguments
+	while ((option_char = getopt(argc, argv, "ifupd:h")) != -1) {
+		switch (option_char) {
+		case 'i': // id of process dump to check against database
+			pid = atoi(optarg);
+			break;
+		case 'f': // file to write SQL query to
+			strcpy_s(file, optarg);
+			break;
+		case 'l': // exe to compare to db
+			strcpy_s(exe, optarg);
+			break;
+		case 'r': // recurse and upload results to db for reference
+			strcpy_s(dir, optarg);
+			break;
+		case 's': // MySQL server hostname
+			strcpy_s(serv, optarg);
+			break;
+		case 'u': // MySQL username
+			strcpy_s(user, optarg);
+			break;
+		case 'p': // MySQL db password
+			strcpy_s(pass, optarg);
+			break;
+		case 'd': // MySQL db
+			strcpy_s(db, optarg);
+			break;
+		case 'h': // help
+			fprintf(stdout, "%s", USAGE);
+			exit(0);
+			break;
+		default:
+			fprintf(stderr, "%s", USAGE);
+			exit(1);
+		}
 	}
-	checkHash("C:\\Users\\vesh\\Documents\\Visual Studio 2015\\Projects\\similarity\\corpus\\inject.dll");
-	//SearchDrive("","C:\\Users\\vesh\\Documents\\Visual Studio 2015\\Projects\\similarity\\corpus", true, false);
-	//SearchDrive("","C:\\Windows\\System32",true,false);
-	//SearchDrive("", "C:\\Windows\\SysWOW64", true, false);
-	
+	//connectMysql();
+	if (file != "") {
+		outfile = fopen(file, "w+");
+	}
+	if (outfile != NULL) {
+		if (db == "") {
+			fprintf(outfile, "use similarity;\n");
+		}
+		else {
+			fprintf(outfile, "use %s;\n", db);
+		}
+	}
+	if (exe != "" && serv != "") {
+		checkHash(exe,serv);
+	}
+	if (dir != "") {
+		SearchDrive("", dir, true, false);
+	}
 	//OutputSearch();
-	PrintMappings();
-	if(outfile != NULL)
-	{
+	if (outfile != NULL) {
 		fclose(outfile);
 	}
-	if(outfile_translation != NULL)
-	{
-		fclose(outfile_translation);
-	}
-	return 0; 
 }
