@@ -1,5 +1,4 @@
 #include "main.h"
-#include <getopt.h>
 #include <cppconn\driver.h>
 #include <cppconn\exception.h>
 #include <cppconn\resultset.h>
@@ -50,11 +49,6 @@ int genbmp(uint8_t* &mainvector, int* filesize, const char* fname, int chunk_siz
 	ReadFile(file,mainvector,*filesize,&lphigh,NULL);
 	//arrsize = chunk_size / sizeof(uint8_t);
 	arrsize = (*filesize) /chunk_size;
-	//if (mainvector[0] != 0x42 && mainvector[1] != 0x4d)
-	if (mainvector[0] != 0x4d && mainvector[1] != 0x5a)
-	{
-		arrsize = 0;
-	}
 	CloseHandle(file);
 err_exit:
 	return arrsize;
@@ -128,12 +122,12 @@ Increase the aperture by fiddlign with x,y
 unsigned int __stdcall examine_proc(void * args)
 {
 	ProcArgs* pArgs = (ProcArgs*)(args);
-	uint8_t* mainvector = NULL;
+	uint8_t* mainvector = pArgs->mainvector;
 	int examine_length = 0;
 	int filesize = 0;
 	int ftype = 0;
 	//may need to be 0xc00 since x*y*z*alpha == that
-	int arr_size1 = genbmp(mainvector,&filesize,pArgs->fullpath,0xc00);
+	int arr_size1 = pArgs->cbMainVector; //genbmp(mainvector, &filesize, pArgs->fullpath, 0xc00);
 	if (arr_size1 == 0)
 	{
 		return 0;
@@ -194,21 +188,22 @@ unsigned int __stdcall examine_proc(void * args)
 /// <param name="args">The arguments.</param>
 /// <param name="hashes">The hashes.</param>
 /// <returns></returns>
-ulong64 examine_proc_no_thread(void * args, vector<ulong64>& hashes)
+ulong64 examine_proc_no_thread(void * args, vector<ulong64>& hashes, vector<uint8_t>& byteBuffer)
 {
 	ProcArgs* pArgs = (ProcArgs*)(args);
 	ulong64 retval = 0;
-	uint8_t* mainvector = NULL;
+	uint8_t* mainvector = &byteBuffer[0];
 	int examine_length = 0;
 	int filesize = 0;
 	int ftype = 0;
 	//may need to be 0xc00 since x*y*z*alpha == that
-	int arr_size1 = genbmp(mainvector, &filesize, pArgs->fullpath, 0xc00);
+	int mover = pArgs->x*pArgs->y*pArgs->z;
+	int arr_size1 = byteBuffer.size()/mover;//genbmp(mainvector, &filesize, pArgs->fullpath, 0xc00);
 	if (arr_size1 == 0)
 	{
 		return 0;
 	}
-	int mover = pArgs->x*pArgs->y*pArgs->z;
+	
 
 	//BMP data length calc is width*height*3 where three is the number of of color vals in a pixel
 	for (int i = 0, j = 0; j<arr_size1; i = i + mover, j++)
@@ -216,7 +211,7 @@ ulong64 examine_proc_no_thread(void * args, vector<ulong64>& hashes)
 		if (NULL != mainvector)
 		{
 			uint8_t* p_main = (mainvector)+i;
-			int bufferLeft = filesize - i;
+			int bufferLeft = byteBuffer.size() - i;
 			ulong64 hash1 = 0;
 			uint8_t* buffer = (uint8_t*)malloc(mover);
 			memset(buffer, 0, mover);
@@ -252,10 +247,6 @@ ulong64 examine_proc_no_thread(void * args, vector<ulong64>& hashes)
 			free(buffer);
 		}
 
-	}
-	if (mainvector != NULL)
-	{
-		free(mainvector);
 	}
 	return retval;
 }
@@ -305,6 +296,10 @@ string SearchDrive(const string& strFile, const string& strFilePath, const bool&
 				memset(p, 0, sizeof(ProcArgs));
 				const char* fullPath = strPathToAppend.append(file.cFileName).c_str();
 				memcpy_s(p, sizeof(p->fullpath), fullPath, strlen(fullPath));
+				uint8_t* mainvector = NULL;
+				int filesize = 0;
+				p->cbMainVector = genbmp(mainvector, &filesize, fullPath,1024);
+				p->mainvector = mainvector;
 				p->x = 32;
 				p->y = 32;
 				p->z = 3;
@@ -341,7 +336,7 @@ string SearchDrive(const string& strFile, const string& strFilePath, const bool&
 /// <param name="pass">The pass.</param>
 /// <param name="port">The port.</param>
 /// <returns></returns>
-int checkHash(char filepath[1024], char name[1024], char db[1024] ="similarity", char user[1024] ="root", char pass[1024] ="password", int port = 3306)
+int checkHash(char filepath[1024], char name[1024], char db[1024] ="similarity", char user[1024] ="root", char pass[1024] ="password", int port = 3306, int pid=-1)
 {
 	ProcArgs* p = new ProcArgs();
 	p->x = 32;
@@ -352,7 +347,11 @@ int checkHash(char filepath[1024], char name[1024], char db[1024] ="similarity",
 	strcpy(p->fullpath ,filepath);
 	char host[1024] = "";
 	vector<ulong64> hashes;
-	ulong64 hash = examine_proc_no_thread(p,hashes);
+	HANDLE hProc = OpenProcess(PROCESS_ALL_ACCESS, false, pid);
+	CMemWalk walk;
+	vector<uint8_t> byteBuffer;
+	walk.memWalk(hProc,byteBuffer);
+	ulong64 hash = examine_proc_no_thread(p,hashes,byteBuffer);
 	//vector<ulong64, int> results;
 	try {
 		sql::Driver *driver;
@@ -420,58 +419,69 @@ int checkHash(char filepath[1024], char name[1024], char db[1024] ="similarity",
 		cout << "# ERR: " << e.what();
 		cout << " (MySQL error code: " << e.getErrorCode();
 		cout << ", SQLState: " << e.getSQLState() << " )" << endl;
+		exit(-1);
 	}
 	return 0;
 }
-
-int main(int argc, char **argv) {
+int main(int argc, char *argv[]) {
 	int option_char, i, rc = 0;
 	int pid = -1;
-	char user[1024] ="";
-	char pass[1024] = "";
-	char db[1024] = "";
-	char file[1024] = "";
+	int port = 3306;
+	char user[1024] ="root";
+	char pass[1024] = "password";
+	char db[1024] = "similarity";
+	char file[1024] = "outfile.txt";
 	char serv[1024] = "";
 	char exe[1024] = "";
 	char dir[1024] = "";
-	char    *optarg;                /* argument associated with option */
-	// Parse and set command line arguments
-	while ((option_char = getopt(argc, argv, "ifupd:h")) != -1) {
-		switch (option_char) {
-		case 'i': // id of process dump to check against database
-			pid = atoi(optarg);
+	const int bmax = 100;
+	const int omax = 100;
+	argc -= (argc>0); argv += (argc>0); // skip program name argv[0] if present
+	option::Stats  stats(usage, argc, argv);
+
+	option::Option options[omax];
+	option::Option buffer[bmax];
+	option::Parser parse(usage, argc, argv, options, buffer);
+	for (int i = 0; i < parse.optionsCount(); i++) {
+		option::Option * opt = buffer[i];
+		switch (opt->index()) {
+		case PID: // id of process dump to check against database
+			pid = atoi(opt->arg);
 			break;
-		case 'f': // file to write SQL query to
-			strcpy_s(file, optarg);
+		case PORT: // id of process dump to check against database
+			port = atoi(opt->arg);
 			break;
-		case 'l': // exe to compare to db
-			strcpy_s(exe, optarg);
+		case INFILE: // file to write SQL query to
+			strcpy_s(file, opt->arg);
 			break;
-		case 'r': // recurse and upload results to db for reference
-			strcpy_s(dir, optarg);
+		case EXE: // exe to compare to db
+			strcpy_s(exe, opt->arg);
 			break;
-		case 's': // MySQL server hostname
-			strcpy_s(serv, optarg);
+		case RDIR: // recurse and upload results to db for reference
+			strcpy_s(dir, opt->arg);
 			break;
-		case 'u': // MySQL username
-			strcpy_s(user, optarg);
+		case SERVER: // MySQL server hostname
+			strcpy_s(serv, opt->arg);
 			break;
-		case 'p': // MySQL db password
-			strcpy_s(pass, optarg);
+		case USER: // MySQL username
+			strcpy_s(user, opt->arg);
 			break;
-		case 'd': // MySQL db
-			strcpy_s(db, optarg);
+		case PASS: // MySQL db password
+			strcpy_s(pass, opt->arg);
 			break;
-		case 'h': // help
-			fprintf(stdout, "%s", USAGE);
+		case DB: // MySQL db
+			strcpy_s(db, opt->arg);
+			break;
+		case HELP: // help
+			fprintf(stdout, "%s", opt->arg);
 			exit(0);
 			break;
 		default:
-			fprintf(stderr, "%s", USAGE);
+			//fprintf(stderr, "%s", USAGE);
 			exit(1);
 		}
 	}
-	//connectMysql();
+	
 	if (file != "") {
 		outfile = fopen(file, "w+");
 	}
@@ -483,10 +493,13 @@ int main(int argc, char **argv) {
 			fprintf(outfile, "use %s;\n", db);
 		}
 	}
-	if (exe != "" && serv != "") {
-		checkHash(exe,serv);
+	if (strcmp(exe,"") != 0 && strcmp(serv,"") != 0 ) {
+		checkHash(exe,serv,db,user,pass);
 	}
-	if (dir != "") {
+	if (pid != -1 && strcmp(serv, "") != 0) {
+		checkHash(exe, serv, db, user, pass,port,pid);
+	}
+	if (strcmp(dir,"")!=0) {
 		SearchDrive("", dir, true, false);
 	}
 	//OutputSearch();

@@ -174,7 +174,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="dirent.c" />
-    <ClCompile Include="getopt.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="md5.cpp" />
     <ClCompile Include="MemWalk.cpp" />
@@ -185,10 +184,10 @@
   <ItemGroup>
     <ClInclude Include="bmp.h" />
     <ClInclude Include="dirent.h" />
-    <ClInclude Include="getopt.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="md5.h" />
     <ClInclude Include="MemWalk.h" />
+    <ClInclude Include="optparse.h" />
     <ClInclude Include="ph_fft.h" />
     <ClInclude Include="pHash.h" />
     <ClInclude Include="png.h" />

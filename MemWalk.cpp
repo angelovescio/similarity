@@ -10,7 +10,6 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "MemWalk.h"
-
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
@@ -39,13 +38,14 @@ CMemWalk::~CMemWalk()
 
 //This is a rewrite of the procedure from 
 //MS SDK in a way which ports seealessly between C and C++
-int CMemWalk::memWalk(HANDLE hOtherProcess)
+int CMemWalk::memWalk(HANDLE hOtherProcess, vector<uint8_t> &byteStream)
 {
+	
     LPVMOBJECT	lpList;
     LPVOID		lpMem, lpUncommited;
     SYSTEM_INFO	si;
 	DWORD dwSize, dwIndex;
-
+	
     /* if pointer exists, reset to no commit */
     if (m_lpWalk)
 	{
@@ -111,8 +111,18 @@ int CMemWalk::memWalk(HANDLE hOtherProcess)
 	    /* increment lpMem to next region of memory */
 	    lpMem = (LPVOID)((DWORD)lpList->mbi.BaseAddress +
 			     (DWORD)lpList->mbi.RegionSize);
+		SIZE_T cbRead = 0;
+		uint8_t * buffer = (uint8_t*)malloc(lpList->mbi.RegionSize);
+		bool worked = ReadProcessMemory(hOtherProcess, lpList->mbi.BaseAddress, buffer, lpList->mbi.RegionSize, &cbRead);
+		if (worked) {
+			for (int i = 0; i < lpList->mbi.RegionSize; i++) {
+				byteStream.push_back(buffer[i]);
+			}
+		}
+		free(buffer);
 	    lpList++;
 		++dwIndex;
+		
     }
 
 	dwSize = ((DWORD)lpList - (DWORD)m_lpWalk);

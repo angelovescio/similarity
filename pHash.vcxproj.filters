@@ -36,9 +36,6 @@
     <ClCompile Include="MemWalk.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="getopt.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="dirent.h">
@@ -65,7 +62,7 @@
     <ClInclude Include="MemWalk.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="getopt.h">
+    <ClInclude Include="optparse.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

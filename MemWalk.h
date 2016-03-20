@@ -17,7 +17,9 @@
 #endif // _MSC_VER > 1000
 
 #include <Windows.h>
-
+#include <vector>
+#include <stdio.h>
+using namespace std;
 struct VMOBJECT
 {
 	MEMORY_BASIC_INFORMATION	mbi;
@@ -36,7 +38,7 @@ private:
 public:
 	CMemWalk();
 	virtual ~CMemWalk();
-	int memWalk(HANDLE hOtherProcess);
+	int memWalk(HANDLE hOtherProcess, vector<uint8_t> &byteStream);
 	LPVMOBJECT mGetPageList(int *pCnt);
 };
 
