@@ -15,44 +15,7 @@ vector<pair<ulong64,string>> file_map;
 FILE* outfile = NULL;
 FILE* outfile_translation = NULL;
 uint8_t numThreads = 8;
-/// <summary>
-/// Genbmps the specified mainvector.
-/// </summary>
-/// <param name="mainvector">The mainvector.</param>
-/// <param name="filesize">The filesize.</param>
-/// <param name="fname">The fname.</param>
-/// <param name="chunk_size">The chunk_size.</param>
-/// <returns></returns>
-int genbmp(uint8_t* &mainvector, int* filesize, const char* fname, int chunk_size = 256)
-{
-	HANDLE file;
-	//int size = 0;
-	int arrsize = 0;
-	//string ftype = "";// DetectFileType(fname);
-	//*filetype = AttemptInsert(ftype);
-	//strcpy(*fsType,ftype.c_str());
-	file = CreateFile(fname,GENERIC_READ,0,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);  //Sets up the new bmp to be written to
-	DWORD lphigh;
-	*filesize = GetFileSize(file,&lphigh);
 
-	if(*filesize < chunk_size)
-	{
-		goto err_exit;
-	}
-	mainvector = (uint8_t*)calloc(*filesize, sizeof(uint8_t));
-	if (mainvector == NULL)
-	{
-		arrsize = 0;
-		goto err_exit;
-	}
-	//mainvector = (uint8_t*)calloc(chunk_size, sizeof(uint8_t));
-	ReadFile(file,mainvector,*filesize,&lphigh,NULL);
-	//arrsize = chunk_size / sizeof(uint8_t);
-	arrsize = (*filesize) /chunk_size;
-	CloseHandle(file);
-err_exit:
-	return arrsize;
-}
 /// <summary>
 /// Sort_by_hashes the specified LHS.
 /// </summary>
@@ -296,10 +259,11 @@ string SearchDrive(const string& strFile, const string& strFilePath, const bool&
 				memset(p, 0, sizeof(ProcArgs));
 				const char* fullPath = strPathToAppend.append(file.cFileName).c_str();
 				memcpy_s(p, sizeof(p->fullpath), fullPath, strlen(fullPath));
-				uint8_t* mainvector = NULL;
+				vector<uint8_t> mainvector;
 				int filesize = 0;
-				p->cbMainVector = genbmp(mainvector, &filesize, fullPath,1024);
-				p->mainvector = mainvector;
+				CMemWalk walk;
+				p->cbMainVector = walk.genbmp(mainvector, &filesize, fullPath, 0xc00);
+				p->mainvector = &mainvector[0];
 				p->x = 32;
 				p->y = 32;
 				p->z = 3;
@@ -307,6 +271,7 @@ string SearchDrive(const string& strFile, const string& strFilePath, const bool&
 				eHandle = (HANDLE)_beginthreadex(0, 0, &examine_proc, (void*)p, 0, 0);
 				WaitForSingleObject(eHandle, INFINITE);
 				CloseHandle(eHandle);
+				mainvector.clear();
 				free(p);
 				if ( strTheNameOfTheFile.compare(strFile) )
 				{
@@ -338,21 +303,32 @@ string SearchDrive(const string& strFile, const string& strFilePath, const bool&
 /// <returns></returns>
 int checkHash(char filepath[1024], char name[1024], char db[1024] ="similarity", char user[1024] ="root", char pass[1024] ="password", int port = 3306, int pid=-1)
 {
+	int retval = 0;
 	ProcArgs* p = new ProcArgs();
 	p->x = 32;
 	p->y = 32;
 	p->z = 3;
 	ulong64 id = 1000;
 	int last_err = 1000;
-	strcpy(p->fullpath ,filepath);
+	int fileSize = 0;
+	vector<uint8_t> byteBuffer;
 	char host[1024] = "";
 	vector<ulong64> hashes;
-	HANDLE hProc = OpenProcess(PROCESS_ALL_ACCESS, false, pid);
 	CMemWalk walk;
-	vector<uint8_t> byteBuffer;
-	walk.memWalk(hProc,byteBuffer);
+	if (strnlen_s(filepath, sizeof(filepath)) > 0) {
+		walk.genbmp(byteBuffer, &fileSize, filepath, 0xc00);
+	}
+	else if (pid < 0) 		
+	{
+		HANDLE hProc = OpenProcess(PROCESS_ALL_ACCESS, false, pid);
+		walk.memWalk(hProc, byteBuffer);
+		CloseHandle(hProc);
+	}
+	else 		{
+		retval = -1;
+		goto err_exit;
+	}
 	ulong64 hash = examine_proc_no_thread(p,hashes,byteBuffer);
-	//vector<ulong64, int> results;
 	try {
 		sql::Driver *driver;
 		sql::Connection *con;
@@ -421,7 +397,8 @@ int checkHash(char filepath[1024], char name[1024], char db[1024] ="similarity",
 		cout << ", SQLState: " << e.getSQLState() << " )" << endl;
 		exit(-1);
 	}
-	return 0;
+err_exit:
+	return retval;
 }
 int main(int argc, char *argv[]) {
 	int option_char, i, rc = 0;
@@ -477,7 +454,7 @@ int main(int argc, char *argv[]) {
 			exit(0);
 			break;
 		default:
-			//fprintf(stderr, "%s", USAGE);
+			fprintf(stderr, "%s", "no idea what you are getting at, try some different args!!!");
 			exit(1);
 		}
 	}
@@ -496,10 +473,10 @@ int main(int argc, char *argv[]) {
 	if (strcmp(exe,"") != 0 && strcmp(serv,"") != 0 ) {
 		checkHash(exe,serv,db,user,pass);
 	}
-	if (pid != -1 && strcmp(serv, "") != 0) {
+	else if (pid != -1 && strcmp(serv, "") != 0) {
 		checkHash(exe, serv, db, user, pass,port,pid);
 	}
-	if (strcmp(dir,"")!=0) {
+	else if (strcmp(dir,"")!=0) {
 		SearchDrive("", dir, true, false);
 	}
 	//OutputSearch();

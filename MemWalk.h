@@ -39,6 +39,7 @@ public:
 	CMemWalk();
 	virtual ~CMemWalk();
 	int memWalk(HANDLE hOtherProcess, vector<uint8_t> &byteStream);
+	int genbmp(vector<uint8_t> &mainvector, int* filesize, const char* fname, int chunk_size);
 	LPVMOBJECT mGetPageList(int *pCnt);
 };
 

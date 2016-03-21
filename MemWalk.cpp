@@ -130,7 +130,34 @@ int CMemWalk::memWalk(HANDLE hOtherProcess, vector<uint8_t> &byteStream)
     /* return number of items in list */
     return (nCnt);
 }
-
+/// <summary>
+/// Genbmps the specified mainvector.
+/// </summary>
+/// <param name="mainvector">The mainvector.</param>
+/// <param name="filesize">The filesize.</param>
+/// <param name="fname">The fname.</param>
+/// <param name="chunk_size">The chunk_size.</param>
+/// <returns></returns>
+int CMemWalk::genbmp(vector<uint8_t> &mainvector, int* filesize, const char* fname, int chunk_size = 256)
+{
+	HANDLE file;
+	int arrsize = 0;
+	file = CreateFile(fname, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);  //Sets up the new bmp to be written to
+	DWORD lphigh;
+	*filesize = GetFileSize(file, &lphigh);
+	uint8_t * buffer = (uint8_t*)malloc(*filesize);
+	bool worked = ReadFile(file, buffer, *filesize, &lphigh, NULL);
+	if (worked) {
+		for (int i = 0; i < *filesize; i++) {
+			mainvector.push_back(buffer[i]);
+		}
+	}
+	free(buffer);
+	arrsize = (*filesize) / chunk_size;
+	CloseHandle(file);
+err_exit:
+	return arrsize;
+}
 
 LPVMOBJECT CMemWalk::mGetPageList(int *pCnt)
 {
