@@ -18,6 +18,7 @@
 
 #include <Windows.h>
 #include <vector>
+#include <stdint.h>
 #include <stdio.h>
 using namespace std;
 struct VMOBJECT

@@ -4,7 +4,12 @@
 #include <cppconn\resultset.h>
 #include <cppconn\statement.h>
 #include "include\mysql_connection.h"
-
+#ifdef _DEBUG
+#pragma comment(lib,"ucrtd.lib")
+#endif // DEBUG
+#pragma comment(lib,"mysqlclient.lib")
+#pragma comment(lib,"libmysql.lib")
+#pragma comment(lib,"mysqlcppconn-static.lib")
 using namespace std; 
 
 int map_count = 0;
@@ -63,7 +68,7 @@ char *str2md5(char *str, int length) {
 	MD5Final(digest, &c);
 
 	for (n = 0; n < 16; ++n) {
-		snprintf(&(out[n * 2]), 16 * 2, "%02x", (unsigned int)digest[n]);
+		sprintf_s(&(out[n * 2]), 16 * 2, "%02x", (unsigned int)digest[n]);
 	}
 
 	return out;
@@ -87,7 +92,7 @@ unsigned int __stdcall examine_proc(void * args)
 	ProcArgs* pArgs = (ProcArgs*)(args);
 	uint8_t* mainvector = pArgs->mainvector;
 	int examine_length = 0;
-	int filesize = 0;
+	int filesize = pArgs->filesize;
 	int ftype = 0;
 	//may need to be 0xc00 since x*y*z*alpha == that
 	int arr_size1 = pArgs->cbMainVector; //genbmp(mainvector, &filesize, pArgs->fullpath, 0xc00);
@@ -134,14 +139,10 @@ unsigned int __stdcall examine_proc(void * args)
 			int err2 = fprintf(outfile, "call insertHashes(%I64u,'%s');\n",
 				hash1, spath.c_str());
 			
-			//fflush(outfile);
+			fflush(outfile);
 			free(buffer);
 		}
 
-	}
-	if(mainvector != NULL)
-	{
-		free(mainvector);
 	}
 	return 0;
 }
@@ -206,7 +207,7 @@ ulong64 examine_proc_no_thread(void * args, vector<ulong64>& hashes, vector<uint
 				hash1, spath.c_str());
 			hashes.push_back(hash1);
 			retval = hash1;
-			//fflush(outfile);
+			fflush(outfile);
 			free(buffer);
 		}
 
@@ -227,7 +228,7 @@ string SearchDrive(const string& strFile, const string& strFilePath, const bool&
 	WIN32_FIND_DATA file;
 
 	string strPathToSearch = strFilePath;
-	HANDLE hFile = FindFirstFile((strPathToSearch.append("\\*")).c_str(), &file);
+	HANDLE hFile = FindFirstFile((strPathToSearch.append("\\*.dll")).c_str(), &file);
 	if ( hFile != INVALID_HANDLE_VALUE )
 	{
 		do
@@ -263,13 +264,16 @@ string SearchDrive(const string& strFile, const string& strFilePath, const bool&
 				int filesize = 0;
 				CMemWalk walk;
 				p->cbMainVector = walk.genbmp(mainvector, &filesize, fullPath, 0xc00);
+				p->filesize = filesize;
 				p->mainvector = &mainvector[0];
 				p->x = 32;
 				p->y = 32;
 				p->z = 3;
+				examine_proc(p);
 				HANDLE eHandle;
 				eHandle = (HANDLE)_beginthreadex(0, 0, &examine_proc, (void*)p, 0, 0);
-				WaitForSingleObject(eHandle, INFINITE);
+				SetEvent(eHandle);
+				WaitForSingleObject(eHandle,1000);
 				CloseHandle(eHandle);
 				mainvector.clear();
 				free(p);
@@ -404,13 +408,13 @@ int main(int argc, char *argv[]) {
 	int option_char, i, rc = 0;
 	int pid = -1;
 	int port = 3306;
-	char user[1024] ="root";
-	char pass[1024] = "password";
+	char user[1024] ="vesh";
+	char pass[1024] = "kcollins12";
 	char db[1024] = "similarity";
 	char file[1024] = "outfile.txt";
 	char serv[1024] = "";
 	char exe[1024] = "";
-	char dir[1024] = "";
+	char dir[1024] = "C:\\Windows\\System32";
 	const int bmax = 100;
 	const int omax = 100;
 	argc -= (argc>0); argv += (argc>0); // skip program name argv[0] if present

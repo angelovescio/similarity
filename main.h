@@ -58,6 +58,7 @@ struct comparer
 struct ProcArgs
 {
 	char fullpath[3200];
+	int filesize;
 	int x;
 	int y;
 	int z;
