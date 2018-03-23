@@ -12,6 +12,12 @@
 #include <stdio.h>
 #include "optparse.h"
 
+#pragma comment(lib,"Advapi32.lib")
+#pragma comment(lib,"Shell32.lib")
+#pragma comment(lib,"User32.lib")
+#pragma comment(lib,"mysqlclient.lib")
+#pragma comment(lib,"mysqlcppconn-static.lib")
+
 using namespace std;
 enum  optionIndex { UNKNOWN, HELP, INFILE
 	, PORT
@@ -62,7 +68,8 @@ struct ProcArgs
 	int x;
 	int y;
 	int z;
-	int cbMainVector;
+	int cMainVector;
+	int cChunk;
 	uint8_t* mainvector;
 };
 struct HashList{

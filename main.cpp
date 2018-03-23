@@ -1,15 +1,14 @@
 #include "main.h"
+#include <cfenv>
 #include <cppconn\driver.h>
 #include <cppconn\exception.h>
 #include <cppconn\resultset.h>
 #include <cppconn\statement.h>
 #include "include\mysql_connection.h"
 #ifdef _DEBUG
-#pragma comment(lib,"ucrtd.lib")
+//#pragma comment(lib,"ucrtd.lib")
 #endif // DEBUG
-#pragma comment(lib,"mysqlclient.lib")
-#pragma comment(lib,"libmysql.lib")
-#pragma comment(lib,"mysqlcppconn-static.lib")
+
 using namespace std; 
 
 int map_count = 0;
@@ -73,6 +72,27 @@ char *str2md5(char *str, int length) {
 
 	return out;
 }
+double atof(const char* str)
+{
+	return std::stof(str);
+}
+double modf(double x, double* iptr)
+{
+#pragma STDC FENV_ACCESS ON
+	int save_round = std::fegetround();
+	std::fesetround(FE_TOWARDZERO);
+	*iptr = std::nearbyint(x);
+	std::fesetround(save_round);
+	return std::copysign(std::isinf(x) ? 0.0 : x - (*iptr), x);
+}
+int AttemptInsert(string filetype)
+{
+	return 0;
+}
+
+void PrintMappings()
+{
+}
 
 /*
 params:
@@ -94,21 +114,29 @@ unsigned int __stdcall examine_proc(void * args)
 	int examine_length = 0;
 	int filesize = pArgs->filesize;
 	int ftype = 0;
+	if (filesize == 0)
+	{
+		return 0;
+	}
 	//may need to be 0xc00 since x*y*z*alpha == that
-	int arr_size1 = pArgs->cbMainVector; //genbmp(mainvector, &filesize, pArgs->fullpath, 0xc00);
+	int arr_size1 = pArgs->cMainVector; //genbmp(mainvector, &filesize, pArgs->fullpath, 0xc00); //this is overall filesize/0xc00
 	if (arr_size1 == 0)
 	{
 		return 0;
 	}
 	int mover = pArgs->x*pArgs->y*pArgs->z;
-	
+	if (mover != pArgs->cChunk)
+	{
+		printf("Chunk size is different than image dimensions\n");
+		mover = pArgs->cChunk;
+	}
 	//BMP data length calc is width*height*3 where three is the number of of color vals in a pixel
-	for(int i=0,j=0;j<arr_size1;i=i+mover,j++)
+	for(int i=0,j=0;j<arr_size1;i++,j++)
 	{
 		if(NULL != mainvector)
 		{
-			uint8_t* p_main = (mainvector)+i;
-			int bufferLeft = filesize - i;
+			uint8_t* p_main = (mainvector)+(i*mover);
+			int bufferLeft = filesize - (i*mover);
 			ulong64 hash1 =0;
 			uint8_t* buffer = (uint8_t*)malloc(mover);
 			memset(buffer, 0, mover);
@@ -214,6 +242,43 @@ ulong64 examine_proc_no_thread(void * args, vector<ulong64>& hashes, vector<uint
 	}
 	return retval;
 }
+/*
+Params:
+fullpath - path to file
+x - width
+y - height
+z - depth
+Increase the aperture by fiddlign with x, y
+*/
+/// <summary>
+/// Examine_procs the specified arguments.
+/// </summary>
+/// <param name="args">The arguments.</param>
+/// <returns></returns>
+unsigned int __stdcall examine_proc_arg_alloc(void * args)
+{
+	const char* fullPath = (const char*)args;
+	ProcArgs* p = (ProcArgs*)malloc(sizeof(ProcArgs));
+	memset(p, 0, sizeof(ProcArgs));
+	memcpy_s(p, sizeof(p->fullpath), fullPath, strlen(fullPath));
+	vector<uint8_t> mainvector;
+	int filesize = 0;
+	CMemWalk walk;
+	p->x = 32;
+	p->y = 32;
+	p->z = 3;
+	p->cChunk = p->x*p->y*p->z;
+	p->cMainVector = walk.genbmp(mainvector, &filesize, fullPath, p->cChunk);
+	p->filesize = filesize;
+	if (p->cMainVector != 0)
+	{
+		p->mainvector = &mainvector[0];
+		examine_proc(p);
+	}
+	mainvector.clear();
+	free(p);
+	return 0;
+}
 /// <summary>
 /// Searches the drive.
 /// </summary>
@@ -256,27 +321,13 @@ string SearchDrive(const string& strFile, const string& strFilePath, const bool&
 			else
 			{
 				strPathToAppend.append("\\");
-				ProcArgs* p = (ProcArgs*)malloc(sizeof(ProcArgs));
-				memset(p, 0, sizeof(ProcArgs));
 				const char* fullPath = strPathToAppend.append(file.cFileName).c_str();
-				memcpy_s(p, sizeof(p->fullpath), fullPath, strlen(fullPath));
-				vector<uint8_t> mainvector;
-				int filesize = 0;
-				CMemWalk walk;
-				p->cbMainVector = walk.genbmp(mainvector, &filesize, fullPath, 0xc00);
-				p->filesize = filesize;
-				p->mainvector = &mainvector[0];
-				p->x = 32;
-				p->y = 32;
-				p->z = 3;
-				examine_proc(p);
+				
 				HANDLE eHandle;
-				eHandle = (HANDLE)_beginthreadex(0, 0, &examine_proc, (void*)p, 0, 0);
+				eHandle = (HANDLE)_beginthreadex(0, 0, &examine_proc_arg_alloc, (void*)fullPath, 0, 0);
 				SetEvent(eHandle);
 				WaitForSingleObject(eHandle,1000);
 				CloseHandle(eHandle);
-				mainvector.clear();
-				free(p);
 				if ( strTheNameOfTheFile.compare(strFile) )
 				{
 					strFoundFilePath = strPathToAppend.append(strFile);
@@ -336,7 +387,7 @@ int checkHash(char filepath[1024], char name[1024], char db[1024] ="similarity",
 	try {
 		sql::Driver *driver;
 		sql::Connection *con;
-		sql::Statement *stmt,*stmt2,*stmt3;
+		sql::Statement *stmt/*,*stmt2,*stmt3*/;
 		sql::ResultSet *res,*res2;
 		sprintf_s(host, "tcp://%s:%d", name, port);
 		driver = get_driver_instance();
@@ -405,7 +456,7 @@ err_exit:
 	return retval;
 }
 int main(int argc, char *argv[]) {
-	int option_char, i, rc = 0;
+	int rc = 0;
 	int pid = -1;
 	int port = 3306;
 	char user[1024] ="vesh";
