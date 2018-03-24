@@ -1,0 +1,500 @@
+swagger: "2.0"
+info:
+  description: "This API is for the Similarity database."
+  version: "1.0.0"
+  title: "Similarity"
+  termsOfService: "https://solvr.ai/terms/"
+  contact:
+    email: "vesh@solvr.ai"
+  license:
+    name: "Apache 2.0"
+    url: "http://www.apache.org/licenses/LICENSE-2.0.html"
+host: "similarity.solvr.ai"
+basePath: "/v2"
+tags:
+- name: "exe"
+  description: "Everything a selected executable"
+  externalDocs:
+    description: "Find out more"
+    url: "https://solvr.ai"
+- name: "user"
+  description: "Operations about user"
+  externalDocs:
+    description: "Access your account"
+    url: "http://swagger.io"
+schemes:
+- "https"
+paths:
+  /exe:
+    post:
+      tags:
+      - "exe"
+      summary: "Submit a new executable to the analysis engine"
+      description: ""
+      operationId: "addExe"
+      consumes:
+      - "application/json"
+      - "application/xml"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "BLOB that needs to be submitted to the database"
+        required: true
+        schema:
+          $ref: "#/definitions/Exe"
+      responses:
+        405:
+          description: "Invalid input"
+      security:
+      - exe_auth:
+        - "write:exe"
+        - "read:exe"
+    put:
+      tags:
+      - "exe"
+      summary: "Get existing executable data"
+      description: ""
+      operationId: "getExisting"
+      consumes:
+      - "application/json"
+      - "application/xml"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "Pet object that needs to be added to the store"
+        required: true
+        schema:
+          $ref: "#/definitions/Exe"
+      responses:
+        400:
+          description: "Invalid ID supplied"
+        404:
+          description: "Exe not found"
+        405:
+          description: "Validation exception"
+      security:
+      - exe_auth:
+        - "write:exe"
+        - "read:exe"
+  /exe/{exeHash}:
+    get:
+      tags:
+      - "exe"
+      summary: "Find executable by hash"
+      description: "Returns multiple exe data"
+      operationId: "getExeByHash"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - name: "exeHash"
+        in: "path"
+        description: "Hash of exe to return"
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "successful operation"
+          schema:
+            $ref: "#/definitions/Exe"
+        400:
+          description: "Invalid hash supplied"
+        404:
+          description: "Exe not found"
+      security:
+      - api_key: []
+    post:
+      tags:
+      - "exe"
+      summary: "Updates an executable in the store with form data"
+      description: ""
+      operationId: "updateExeWithForm"
+      consumes:
+      - "application/x-www-form-urlencoded"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - name: "exeHash"
+        in: "path"
+        description: "Hash of exe that needs to be updated"
+        required: true
+        type: "integer"
+        format: "int64"
+      - name: "name"
+        in: "formData"
+        description: "Updated path of the executable"
+        required: false
+        type: "string"
+      - name: "status"
+        in: "formData"
+        description: "Updated status of the executable"
+        required: false
+        type: "string"
+      responses:
+        405:
+          description: "Invalid input"
+      security:
+      - exe_auth:
+        - "write:exe"
+        - "read:exe"
+    delete:
+      tags:
+      - "exe"
+      summary: "Deletes an executable record"
+      description: ""
+      operationId: "deleteExe"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - name: "api_key"
+        in: "header"
+        required: false
+        type: "string"
+      - name: "exeHash"
+        in: "path"
+        description: "Executable hash to delete"
+        required: true
+        type: "string"
+      responses:
+        400:
+          description: "Invalid hash supplied"
+        404:
+          description: "Hash not found"
+      security:
+      - exe_auth:
+        - "write:exe"
+        - "read:exe"
+  /exe/{exeHash}/neighbors:
+    get:
+      tags:
+      - "exe"
+      summary: "Returns nearest neighbors, by Hamming distance to hash"
+      description: "Returns a SHA256 hash of the ten nearest neighbors and their filenames"
+      operationId: "getNeighbors"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "exeHash"
+        in: "path"
+        description: "Hash of exe that needs to be updated"
+        required: true
+        type: "integer"
+        format: "int64"
+      - in: "body"
+        name: "hash"
+        description: "hash to get neighbors for"
+        required: true
+        schema:
+          $ref: "#/definitions/Neighbors"
+      responses:
+        200:
+          description: "successful operation"
+          schema:
+            $ref: "#/definitions/Order"
+        400:
+          description: "Invalid hash supplied"
+        404:
+          description: "Neighbors not found"
+      security:
+      - api_key: []
+  /user:
+    post:
+      tags:
+      - "user"
+      summary: "Create user"
+      description: "This can only be done by the logged in user."
+      operationId: "createUser"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "Created user object"
+        required: true
+        schema:
+          $ref: "#/definitions/User"
+      responses:
+        default:
+          description: "successful operation"
+  /user/createWithArray:
+    post:
+      tags:
+      - "user"
+      summary: "Creates list of users with given input array"
+      description: ""
+      operationId: "createUsersWithArrayInput"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "List of user object"
+        required: true
+        schema:
+          type: "array"
+          items:
+            $ref: "#/definitions/User"
+      responses:
+        default:
+          description: "successful operation"
+  /user/createWithList:
+    post:
+      tags:
+      - "user"
+      summary: "Creates list of users with given input array"
+      description: ""
+      operationId: "createUsersWithListInput"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "List of user object"
+        required: true
+        schema:
+          type: "array"
+          items:
+            $ref: "#/definitions/User"
+      responses:
+        default:
+          description: "successful operation"
+  /user/login:
+    get:
+      tags:
+      - "user"
+      summary: "Logs user into the system"
+      description: ""
+      operationId: "loginUser"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - name: "username"
+        in: "query"
+        description: "The user name for login"
+        required: true
+        type: "string"
+      - name: "password"
+        in: "query"
+        description: "The password for login in clear text"
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "successful operation"
+          schema:
+            type: "string"
+          headers:
+            X-Rate-Limit:
+              type: "integer"
+              format: "int32"
+              description: "calls per hour allowed by the user"
+            X-Expires-After:
+              type: "string"
+              format: "date-time"
+              description: "date in UTC when token expires"
+        400:
+          description: "Invalid username/password supplied"
+  /user/logout:
+    get:
+      tags:
+      - "user"
+      summary: "Logs out current logged in user session"
+      description: ""
+      operationId: "logoutUser"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters: []
+      responses:
+        default:
+          description: "successful operation"
+  /user/{username}:
+    get:
+      tags:
+      - "user"
+      summary: "Get user by user name"
+      description: ""
+      operationId: "getUserByName"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - name: "username"
+        in: "path"
+        description: "The name that needs to be fetched. Use user1 for testing. "
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "successful operation"
+          schema:
+            $ref: "#/definitions/User"
+        400:
+          description: "Invalid username supplied"
+        404:
+          description: "User not found"
+    put:
+      tags:
+      - "user"
+      summary: "Updated user"
+      description: "This can only be done by the logged in user."
+      operationId: "updateUser"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - name: "username"
+        in: "path"
+        description: "name that need to be updated"
+        required: true
+        type: "string"
+      - in: "body"
+        name: "body"
+        description: "Updated user object"
+        required: true
+        schema:
+          $ref: "#/definitions/User"
+      responses:
+        400:
+          description: "Invalid user supplied"
+        404:
+          description: "User not found"
+    delete:
+      tags:
+      - "user"
+      summary: "Delete user"
+      description: "This can only be done by the logged in user."
+      operationId: "deleteUser"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - name: "username"
+        in: "path"
+        description: "The name that needs to be deleted"
+        required: true
+        type: "string"
+      responses:
+        400:
+          description: "Invalid username supplied"
+        404:
+          description: "User not found"
+securityDefinitions:
+  exe_auth:
+    type: "oauth2"
+    authorizationUrl: "https://similarity.solvr.ai/oauth/dialog"
+    flow: "implicit"
+    scopes:
+      write:exe: "submit exe to database"
+      read:exe: "get exe data from database"
+  api_key:
+    type: "apiKey"
+    name: "api_key"
+    in: "header"
+definitions:
+  Category:
+    type: "object"
+    properties:
+      id:
+        type: "integer"
+        format: "int64"
+      name:
+        type: "string"
+    xml:
+      name: "Category"
+  User:
+    type: "object"
+    properties:
+      id:
+        type: "integer"
+        format: "int64"
+      username:
+        type: "string"
+      firstName:
+        type: "string"
+      lastName:
+        type: "string"
+      email:
+        type: "string"
+      password:
+        type: "string"
+      phone:
+        type: "string"
+      userStatus:
+        type: "integer"
+        format: "int32"
+        description: "User Status"
+    xml:
+      name: "User"
+  Tag:
+    type: "object"
+    properties:
+      id:
+        type: "integer"
+        format: "int64"
+      name:
+        type: "string"
+    xml:
+      name: "Tag"
+  Exe:
+    type: "object"
+    required:
+    - "name"
+    - "binary"
+    properties:
+      exeHash:
+        type: "string"
+        example: "ADBCDEFABCDEFABCDEFABCDEF"
+      category:
+        $ref: "#/definitions/Category"
+      name:
+        type: "string"
+        example: "Kernel32.dll"
+      hashes:
+        type: "array"
+        xml:
+          name: "hashes"
+          wrapped: true
+        items:
+          type: "string"
+      tags:
+        type: "array"
+        xml:
+          name: "tag"
+          wrapped: true
+        items:
+          $ref: "#/definitions/Tag"
+      status:
+        type: "string"
+        description: "executable processing status"
+        enum:
+        - "submitted"
+        - "processing"
+        - "finished"
+    xml:
+      name: "Exe"
+  ApiResponse:
+    type: "object"
+    properties:
+      code:
+        type: "integer"
+        format: "int32"
+      type:
+        type: "string"
+      message:
+        type: "string"
+externalDocs:
+  description: "Find out more about Solvr"
+  url: "https://solvr.ai"
