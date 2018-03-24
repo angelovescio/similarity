@@ -73,7 +73,7 @@
     <IntDir>$(Configuration)\</IntDir>
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(IncludePath);$(ProjectDir)\include</IncludePath>
-    <LibraryPath>$(LibraryPath);C:\Users\vesh\Documents\Visual Studio 2015\Projects\similarity\lib\x86_debug;$(ProjectDir)\lib</LibraryPath>
+    <LibraryPath>$(LibraryPath);$(ProjectDir)\lib</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
